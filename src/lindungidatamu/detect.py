@@ -1,0 +1,222 @@
+"""Finding Indonesian personal data in text.
+
+Three sources, most certain first:
+  pattern   regular expressions with checks (patterns.json): NIK, NPWP, KK, cards, keys, ...
+  term      your own words: client names, project codenames, internal systems
+  model     names, organisations and addresses from a name model (lindungidatamu.names, optional)
+
+`find` returns non-overlapping entities: where two overlap, the more certain source wins, then the
+longer match, then the earlier pattern in patterns.json.
+"""
+
+import json
+import re
+from dataclasses import dataclass
+from functools import lru_cache
+from importlib import resources
+
+from .validators import VALIDATORS
+
+SOURCES = ("pattern", "term", "model")
+
+
+@dataclass(frozen=True)
+class Entity:
+    type: str        # NIK, NPWP, PERSON, ...
+    start: int
+    end: int
+    text: str
+    source: str      # pattern | term | model
+    detector: str = ""   # the pattern's id, the term, or the model's name
+
+
+@dataclass(frozen=True)
+class Format:
+    """One of your own number formats, e.g. a policy number: Format("POLICY", "POL-########").
+    # is a digit, @ a letter, * either; anything else as written (any case). Built into a pattern
+    here, never written as a regular expression, so a format can't make matching slow."""
+    type: str
+    format: str
+
+    @property
+    def regex(self) -> re.Pattern:
+        tokens = {"#": r"\d", "@": "[A-Za-z]", "*": "[A-Za-z0-9]"}
+        body = "".join(tokens.get(c) or re.escape(c) for c in self.format.strip())
+        return re.compile(rf"(?<![A-Za-z0-9]){body}(?![A-Za-z0-9])", re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class Term:
+    """One of your own words, matched as a whole word in any case: Term("CLIENT", "PT Sinar Abadi")."""
+    type: str
+    text: str
+    aliases: tuple[str, ...] = ()
+
+
+@lru_cache(maxsize=1)
+def _compiled() -> tuple:
+    doc = json.loads(resources.files(__package__).joinpath("patterns.json").read_text())
+    out = []
+    for p in doc["patterns"]:
+        flags = re.IGNORECASE if "i" in p.get("flags", "") else 0
+        allow = frozenset(_normal(v) for v in p.get("allow", []))
+        out.append((p, re.compile(p["pattern"], flags), VALIDATORS.get(p.get("validator", "")), allow))
+    return tuple(out)
+
+
+@lru_cache(maxsize=1)
+def _public() -> dict:
+    doc = json.loads(resources.files(__package__).joinpath("public.json").read_text())
+    titles = sorted(doc["titles"], key=len, reverse=True)
+    return {"organisations": tuple(doc["organisations"]),
+            "not_names": frozenset(w.lower() for w in doc["not_names"]),
+            "public_prefixes": frozenset(doc.get("public_prefixes", [])),
+            "titles": re.compile(r"^(?:(?:" + "|".join(re.escape(t) for t in titles) + r")\s+)+", re.IGNORECASE)}
+
+
+# After a street (or Gg., Komplek, Dusun) the rest of an Indonesian address follows in parts:
+# RT/RW, kelurahan or desa, kecamatan, kabupaten or kota, a city, a postcode. A known city
+# (public.json `places`) counts wherever it is; another capitalised name only after a comma and
+# before a comma, full stop, line end or postcode, so "Jl. Kenanga No. 7, Budi minta dikirim"
+# doesn't take "Budi".
+_ADDRESS_PART = re.compile(
+    r"\s*,?\s*(?:"
+    r"RT\.?\s*\d{1,3}\s*[/ ]?\s*RW\.?\s*\d{1,3}|RT\.?\s*\d{1,3}|RW\.?\s*\d{1,3}"
+    r"|(?:Kel(?:urahan)?|Desa|Ds|Dusun|Dsn|Kec(?:amatan)?|Kab(?:upaten)?|Kota|Kodya|Prov(?:insi)?)\.?\s+[A-Z][\w'-]*(?:\s+[A-Z][\w'-]*){0,2}"
+    r"|\d{5}\b)")
+_CITY_PART = re.compile(r"\s*,\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})(?=\s*(?:[,.;\n]|\d{5}\b|$))")
+
+
+@lru_cache(maxsize=1)
+def _places() -> re.Pattern:
+    names = sorted(json.loads(resources.files(__package__).joinpath("public.json").read_text())["places"], key=len, reverse=True)
+    return re.compile(r"\s*,?\s*(?:" + "|".join(re.escape(n) for n in names) + r")\b")
+
+
+def _extend_address(text: str, end: int) -> int:
+    cities = 0
+    while True:
+        m = _ADDRESS_PART.match(text, end)
+        if m and m.end() > end:
+            end = m.end()
+            continue
+        m = _places().match(text, end) or _CITY_PART.match(text, end)
+        if m and cities < 2:
+            end, cities = m.end(), cities + 1
+            continue
+        return end
+
+
+def patterns_version() -> str:
+    return json.loads(resources.files(__package__).joinpath("patterns.json").read_text())["version"]
+
+
+def _normal(v: str) -> str:
+    d = re.sub(r"\D", "", v)
+    return d if len(d) >= 8 and re.fullmatch(r"[\d\s.\-+()]+", v) else v.strip()
+
+
+def _words(text: str, word: str) -> list[tuple[int, int]]:
+    if not word.strip():
+        return []
+    rx = re.compile(rf"(?<![^\W_]){re.escape(word.strip())}(?![^\W_])", re.IGNORECASE)
+    return [(m.start(), m.end()) for m in rx.finditer(text)]
+
+
+def pattern_entities(text: str, types: set[str] | None = None) -> list[Entity]:
+    out = []
+    for spec, rx, check, allow in _compiled():
+        if types and spec["type"] not in types:
+            continue
+        g = spec.get("group", 0)
+        for m in rx.finditer(text):
+            value = m.group(g)
+            if (check is None or check(value)) and _normal(value) not in allow:
+                start, end = m.start(g), m.end(g)
+                if spec["type"] == "ADDRESS":
+                    end = _extend_address(text, end)
+                out.append(Entity(spec["type"], start, end, text[start:end], "pattern", spec["id"]))
+    return out
+
+
+def _not_an_organisation(name: str, public: tuple[str, ...]) -> bool:
+    """Real organisation names are capitalised: "akun aku dibajak" isn't one. Nor is a public one
+    with filler around it ("VA BTN")."""
+    words = [w for w in name.split() if len(w) > 3]          # "the", "of", "dan" don't decide it
+    if words and sum(w[:1].islower() for w in words) * 2 >= len(words):
+        return True
+    rest = name
+    for p in sorted(public, key=len, reverse=True):
+        rest = re.sub(rf"(?<![^\W_]){re.escape(p)}(?![^\W_])", " ", rest)
+    return rest != name and not any(len(w) >= 4 and w[:1].isupper() for w in rest.split())
+
+
+def _clean_names(found: list[Entity], text: str, public: bool = True) -> list[Entity]:
+    """A name model's people without forms of address ("kak", "Customer") and titles, and its
+    organisations without ordinary phrases and public bodies dressed up ("VA BTN")."""
+    pub, out = _public(), []
+    cased = any(c.isupper() for c in text)      # all-lowercase text has no capitals to go by
+    for e in found:
+        if e.type in ("PERSON", "ORG") and " ".join(e.text.strip(" .,").lower().split()) in pub["not_names"]:
+            continue
+        if e.type == "ORG" and cased and _not_an_organisation(e.text, pub["organisations"] if public else ()):
+            continue
+        if e.type == "ORG" and public and len(e.text.split()) <= 4 and e.text.split()[0].lower() in pub["public_prefixes"]:
+            continue                             # a ministry, court, council or party: public. Only a
+                                                 # short name: a long phrase may hold a private one
+        if e.type == "ADDRESS" and len(e.text.split()) < 2 and not any(c.isdigit() for c in e.text):
+            continue                             # "rumahnya": a place word, not an address
+        if e.type == "PERSON":
+            t = pub["titles"].match(e.text)
+            if t and t.end() < len(e.text):
+                e = Entity(e.type, e.start + t.end(), e.end, e.text[t.end():], e.source, e.detector)
+            elif t:
+                continue
+        out.append(e)
+    return out
+
+
+def find(text: str, *, types: set[str] | None = None, terms: list[Term] = (), formats: list[Format] = (),
+         names=None, keep: list[str] = (), public: bool = True) -> list[Entity]:
+    """Personal data in `text`, non-overlapping, in order.
+
+    types    only these types (default: all)
+    terms    your own words to find (client names, codenames)
+    formats  your own number formats
+    names    a name finder (lindungidatamu.names.NameFinder) for PERSON, ORG and ADDRESS
+    keep     public words the name finder must not report (your brand, a regulator)
+    public   also keep Indonesia's public banks, payment apps, couriers, platforms and government
+             bodies (public.json), which a name model often reports as organisations
+    """
+    found = pattern_entities(text, types)
+    for t in terms:
+        for word in (t.text, *t.aliases):
+            found += [Entity(t.type, a, b, text[a:b], "term", t.text) for a, b in _words(text, word)]
+    for f in formats:
+        found += [Entity(f.type, m.start(), m.end(), m.group(0), "pattern", f.format) for m in f.regex.finditer(text)]
+    if names is not None:
+        kept = [*keep, *(_public()["organisations"] if public else ())]
+        ranges = [r for w in kept for r in _words(text, w)]
+        found += [e for e in _clean_names(names.find(text), text, public)
+                  if not any(a <= e.start and e.end <= b for a, b in ranges)]
+    if types:
+        found = [e for e in found if e.type in types]
+    return _resolve(found, text)
+
+
+# Placeholders already in the text ([NIK_1]) are never found again.
+_PLACEHOLDER = re.compile(r"\[[A-Z][A-Z_]{1,15}_\d{1,3}\]")
+
+
+def _resolve(found: list[Entity], text: str) -> list[Entity]:
+    taken = [(m.start(), m.end()) for m in _PLACEHOLDER.finditer(text)]
+    order = {id(e): i for i, e in enumerate(found)}
+    ranked = sorted((e for e in found if e.end > e.start and not any(e.start < b and a < e.end for a, b in taken)),
+                    # An address competes on length whoever found it: the model's full address beats
+                    # a pattern that stopped at the street.
+                    key=lambda e: (0 if e.type == "ADDRESS" else SOURCES.index(e.source), -(e.end - e.start), order[id(e)]))
+    kept: list[Entity] = []
+    for e in ranked:
+        if not any(e.start < k.end and k.start < e.end for k in kept):
+            kept.append(e)
+    return sorted(kept, key=lambda e: e.start)

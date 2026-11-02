@@ -1,0 +1,441 @@
+{
+ "_comment": "What lindungidatamu.find returns for each text: [type, matched text] in order. Near misses (wrong check digits, public test cards, words that only look like labels) expect nothing. All values are made up.",
+ "cases": [
+  {
+   "text": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAA",
+   "expect": [
+    [
+     "SECRET",
+     "-----BEGIN OPENSSH PRIVATE KEY-----"
+    ]
+   ]
+  },
+  {
+   "text": "aws key AKIAIOSFODNN7EXAMPLE dipakai di prod",
+   "expect": [
+    [
+     "SECRET",
+     "AKIAIOSFODNN7EXAMPLE"
+    ]
+   ]
+  },
+  {
+   "text": "token ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789",
+   "expect": [
+    [
+     "SECRET",
+     "ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789"
+    ]
+   ]
+  },
+  {
+   "text": "export ANTHROPIC_API_KEY=sk-ant-api03-AbCdEfGhIjKlMnOpQrStUv",
+   "expect": [
+    [
+     "SECRET",
+     "sk-ant-api03-AbCdEfGhIjKlMnOpQrStUv"
+    ]
+   ]
+  },
+  {
+   "text": "OPENAI_API_KEY=sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789",
+   "expect": [
+    [
+     "SECRET",
+     "sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789"
+    ]
+   ]
+  },
+  {
+   "text": "DATABASE_URL=postgres://app:S3cr3t!pw@db.internal:5432/core",
+   "expect": [
+    [
+     "SECRET",
+     "postgres://app:S3cr3t!pw@"
+    ],
+    [
+     "HOST",
+     "db.internal"
+    ]
+   ]
+  },
+  {
+   "text": "login admin, password: Xk29!fmQz",
+   "expect": [
+    [
+     "SECRET",
+     "password: Xk29!fmQz"
+    ]
+   ]
+  },
+  {
+   "text": "kata sandi = Rahasia2024",
+   "expect": [
+    [
+     "SECRET",
+     "kata sandi = Rahasia2024"
+    ]
+   ]
+  },
+  {
+   "text": "password harus minimal 12 karakter",
+   "expect": []
+  },
+  {
+   "text": "tolong cek transaksi kartu 4532 0151 8372 9646 kemarin",
+   "expect": [
+    [
+     "CARD",
+     "4532 0151 8372 9646"
+    ]
+   ]
+  },
+  {
+   "text": "kartu 4111 1111 1111 1112 (salah checksum)",
+   "expect": []
+  },
+  {
+   "text": "kartu berakhiran 1111 ditolak",
+   "expect": []
+  },
+  {
+   "text": "NIK pelanggan 3174091203880004 tolong diverifikasi",
+   "expect": [
+    [
+     "NIK",
+     "3174091203880004"
+    ]
+   ]
+  },
+  {
+   "text": "nomor 9974091203880004 bukan NIK",
+   "expect": []
+  },
+  {
+   "text": "NPWP 01.234.567.8-901.000",
+   "expect": [
+    [
+     "NPWP",
+     "01.234.567.8-901.000"
+    ]
+   ]
+  },
+  {
+   "text": "hubungi budi@contoh.co.id",
+   "expect": [
+    [
+     "EMAIL",
+     "budi@contoh.co.id"
+    ]
+   ]
+  },
+  {
+   "text": "a@x.com, b@x.com, c@x.com, d@x.com, e@x.com",
+   "expect": [
+    [
+     "EMAIL",
+     "a@x.com"
+    ],
+    [
+     "EMAIL",
+     "b@x.com"
+    ],
+    [
+     "EMAIL",
+     "c@x.com"
+    ],
+    [
+     "EMAIL",
+     "d@x.com"
+    ],
+    [
+     "EMAIL",
+     "e@x.com"
+    ]
+   ]
+  },
+  {
+   "text": "HP 0812-3456-7890",
+   "expect": [
+    [
+     "PHONE",
+     "0812-3456-7890"
+    ]
+   ]
+  },
+  {
+   "text": "0812-3456-7890, 0813 2222 3333, +6285711112222",
+   "expect": [
+    [
+     "PHONE",
+     "0812-3456-7890"
+    ],
+    [
+     "PHONE",
+     "0813 2222 3333"
+    ],
+    [
+     "PHONE",
+     "+6285711112222"
+    ]
+   ]
+  },
+  {
+   "text": "write a python function that reverses a string",
+   "expect": []
+  },
+  {
+   "text": "sandbox Midtrans nolak kartu tes 4111 1111 1111 1111 exp 12/29, kenapa ya?",
+   "expect": []
+  },
+  {
+   "text": "Stripe test mode: 4242 4242 4242 4242 works but 4000 0000 0000 0002 declines",
+   "expect": []
+  },
+  {
+   "text": "refund ke kartu 5221 7864 0913 0750 gagal terus",
+   "expect": [
+    [
+     "CARD",
+     "5221 7864 0913 0750"
+    ]
+   ]
+  },
+  {
+   "text": "kirim ke Jl. Kenanga No. 7 RT 03/RW 05, Depok",
+   "expect": [
+    [
+     "ADDRESS",
+     "Jl. Kenanga No. 7 RT 03/RW 05, Depok"
+    ]
+   ]
+  },
+  {
+   "text": "Alamat: Jl. Pemuda No. 88 Semarang; Perumahan Griya Asri Blok C3 Bekasi; Jl. Merdeka 45, Bandung",
+   "expect": [
+    [
+     "ADDRESS",
+     "Jl. Pemuda No. 88 Semarang"
+    ],
+    [
+     "ADDRESS",
+     "Perumahan Griya Asri Blok C3 Bekasi"
+    ],
+    [
+     "ADDRESS",
+     "Jl. Merdeka 45, Bandung"
+    ]
+   ]
+  },
+  {
+   "text": "Perum Bulog 2024, proyek sudah jalan 3 bulan, Jalan ke kantor 2 kali",
+   "expect": []
+  },
+  {
+   "text": "NIK 3174 0912 0388 0004 sudah diverifikasi",
+   "expect": [
+    [
+     "NIK",
+     "3174 0912 0388 0004"
+    ]
+   ]
+  },
+  {
+   "text": "nomor KTP: 317409-120388-0004",
+   "expect": [
+    [
+     "NIK",
+     "317409-120388-0004"
+    ]
+   ]
+  },
+  {
+   "text": "Tolong ringkas kontrak Budi Santoso, NIK 317409120388004",
+   "expect": [
+    [
+     "NIK",
+     "317409120388004"
+    ]
+   ]
+  },
+  {
+   "text": "no. KTP 31740912038800044 (salah ketik)",
+   "expect": [
+    [
+     "NIK",
+     "31740912038800044"
+    ]
+   ]
+  },
+  {
+   "text": "invoice 1234 5678 9012 3456 sudah dibayar",
+   "expect": []
+  },
+  {
+   "text": "NIK karyawan baru dikirim besok, total 12 orang",
+   "expect": []
+  },
+  {
+   "text": "Nomor KK: 3174091203880004",
+   "expect": [
+    [
+     "KK",
+     "3174091203880004"
+    ]
+   ]
+  },
+  {
+   "text": "passport no. A1234567",
+   "expect": [
+    [
+     "PASSPORT",
+     "A1234567"
+    ]
+   ]
+  },
+  {
+   "text": "Paspor: C 7654321",
+   "expect": [
+    [
+     "PASSPORT",
+     "C 7654321"
+    ]
+   ]
+  },
+  {
+   "text": "passport photo 1234567",
+   "expect": []
+  },
+  {
+   "text": "BPJS Kesehatan 0001234567890",
+   "expect": [
+    [
+     "BPJS",
+     "0001234567890"
+    ]
+   ]
+  },
+  {
+   "text": "SIM 1234567890123",
+   "expect": [
+    [
+     "SIM",
+     "1234567890123"
+    ]
+   ]
+  },
+  {
+   "text": "simulasi 123456789012",
+   "expect": []
+  },
+  {
+   "text": "no. rek. BCA 1234567890",
+   "expect": [
+    [
+     "BANK",
+     "1234567890"
+    ]
+   ]
+  },
+  {
+   "text": "Transfer ke rekening 123-456-7890 a/n Budi",
+   "expect": [
+    [
+     "BANK",
+     "123-456-7890"
+    ]
+   ]
+  },
+  {
+   "text": "rekening 1111111111",
+   "expect": []
+  },
+  {
+   "text": "servers 10.0.0.5, 10.0.0.6 and 192.168.1.20 are down",
+   "expect": [
+    [
+     "IP",
+     "10.0.0.5"
+    ],
+    [
+     "IP",
+     "10.0.0.6"
+    ],
+    [
+     "IP",
+     "192.168.1.20"
+    ]
+   ]
+  },
+  {
+   "text": "ping 10.0.0.5",
+   "expect": [
+    [
+     "IP",
+     "10.0.0.5"
+    ]
+   ]
+  },
+  {
+   "text": "10.300.1.2, 10.0.0.1, 10.0.0.2",
+   "expect": [
+    [
+     "IP",
+     "10.0.0.1"
+    ],
+    [
+     "IP",
+     "10.0.0.2"
+    ]
+   ]
+  },
+  {
+   "text": "db01.corp, api.internal and files.local are down",
+   "expect": [
+    [
+     "HOST",
+     "db01.corp"
+    ],
+    [
+     "HOST",
+     "api.internal"
+    ],
+    [
+     "HOST",
+     "files.local"
+    ]
+   ]
+  },
+  {
+   "text": "version 10.15.7 released",
+   "expect": []
+  },
+  {
+   "text": "NPWP 0012345678901000 untuk PT Contoh",
+   "expect": [
+    [
+     "NPWP",
+     "0012345678901000"
+    ]
+   ]
+  },
+  {
+   "text": "NPWP baru: 3174091203880004",
+   "expect": [
+    [
+     "NPWP",
+     "3174091203880004"
+    ]
+   ]
+  },
+  {
+   "text": "NPWP 012345678901000",
+   "expect": [
+    [
+     "NPWP",
+     "012345678901000"
+    ]
+   ]
+  }
+ ]
+}

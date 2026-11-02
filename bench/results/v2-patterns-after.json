@@ -1,0 +1,1374 @@
+{
+ "texts": 280,
+ "labelled": 640,
+ "protected": 0.6,
+ "strict": 0.5953125,
+ "over_masked_items": 0,
+ "over_masked_texts": 0,
+ "found": 384,
+ "ms_per_text": 0.16,
+ "per_type": {
+  "ADDRESS": {
+   "labelled": 72,
+   "protected": 72,
+   "strict": 72
+  },
+  "PERSON": {
+   "labelled": 216,
+   "protected": 0,
+   "strict": 0
+  },
+  "PHONE": {
+   "labelled": 72,
+   "protected": 72,
+   "strict": 72
+  },
+  "BANK": {
+   "labelled": 56,
+   "protected": 56,
+   "strict": 56
+  },
+  "ORG": {
+   "labelled": 40,
+   "protected": 0,
+   "strict": 0
+  },
+  "NIK": {
+   "labelled": 56,
+   "protected": 56,
+   "strict": 53
+  },
+  "BPJS": {
+   "labelled": 16,
+   "protected": 16,
+   "strict": 16
+  },
+  "EMAIL": {
+   "labelled": 32,
+   "protected": 32,
+   "strict": 32
+  },
+  "KK": {
+   "labelled": 16,
+   "protected": 16,
+   "strict": 16
+  },
+  "NPWP": {
+   "labelled": 16,
+   "protected": 16,
+   "strict": 16
+  },
+  "SIM": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  },
+  "PASSPORT": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  },
+  "CARD": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  },
+  "HOST": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  },
+  "IP": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  },
+  "SECRET": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  }
+ },
+ "misses": [
+  {
+   "id": "v2-online_shop-00-0",
+   "type": "PERSON",
+   "value": "Maria Siregar"
+  },
+  {
+   "id": "v2-online_shop-00-1",
+   "type": "PERSON",
+   "value": "Galih Lim"
+  },
+  {
+   "id": "v2-online_shop-00-2",
+   "type": "PERSON",
+   "value": "Bayu Sihombing"
+  },
+  {
+   "id": "v2-online_shop-00-3",
+   "type": "PERSON",
+   "value": "Sutrisno"
+  },
+  {
+   "id": "v2-online_shop-00-4",
+   "type": "PERSON",
+   "value": "Suparman"
+  },
+  {
+   "id": "v2-online_shop-00-5",
+   "type": "PERSON",
+   "value": "Suparman"
+  },
+  {
+   "id": "v2-online_shop-00-6",
+   "type": "PERSON",
+   "value": "Sukarti"
+  },
+  {
+   "id": "v2-online_shop-00-7",
+   "type": "PERSON",
+   "value": "Teguh"
+  },
+  {
+   "id": "v2-online_shop-01-0",
+   "type": "PERSON",
+   "value": "Sri Tanoto"
+  },
+  {
+   "id": "v2-online_shop-01-1",
+   "type": "PERSON",
+   "value": "Michael"
+  },
+  {
+   "id": "v2-online_shop-01-2",
+   "type": "PERSON",
+   "value": "Tukiyem"
+  },
+  {
+   "id": "v2-online_shop-01-3",
+   "type": "PERSON",
+   "value": "Budi Pratama"
+  },
+  {
+   "id": "v2-online_shop-01-4",
+   "type": "PERSON",
+   "value": "Suparman"
+  },
+  {
+   "id": "v2-online_shop-01-5",
+   "type": "PERSON",
+   "value": "Ahmad Tanoto"
+  },
+  {
+   "id": "v2-online_shop-01-6",
+   "type": "PERSON",
+   "value": "Kevin"
+  },
+  {
+   "id": "v2-online_shop-01-7",
+   "type": "PERSON",
+   "value": "Bayu Gunawan"
+  },
+  {
+   "id": "v2-online_shop-03-0",
+   "type": "ORG",
+   "value": "PT Global Logistik Indonesia"
+  },
+  {
+   "id": "v2-online_shop-03-1",
+   "type": "ORG",
+   "value": "PT Global Logistik Indonesia"
+  },
+  {
+   "id": "v2-online_shop-03-2",
+   "type": "ORG",
+   "value": "PT Prima Data Solusi"
+  },
+  {
+   "id": "v2-online_shop-03-3",
+   "type": "ORG",
+   "value": "PT Karya Nusantara Teknik"
+  },
+  {
+   "id": "v2-online_shop-03-4",
+   "type": "ORG",
+   "value": "Yayasan Harapan Bangsa"
+  },
+  {
+   "id": "v2-online_shop-03-5",
+   "type": "ORG",
+   "value": "PT Sinar Mas Sentosa"
+  },
+  {
+   "id": "v2-online_shop-03-6",
+   "type": "ORG",
+   "value": "Klinik Sehat Sentosa"
+  },
+  {
+   "id": "v2-online_shop-03-7",
+   "type": "ORG",
+   "value": "PT Karya Nusantara Teknik"
+  },
+  {
+   "id": "v2-online_shop-04-0",
+   "type": "PERSON",
+   "value": "Paijo"
+  },
+  {
+   "id": "v2-online_shop-04-1",
+   "type": "PERSON",
+   "value": "Euis Nugroho"
+  },
+  {
+   "id": "v2-online_shop-04-2",
+   "type": "PERSON",
+   "value": "Lestari Pratama"
+  },
+  {
+   "id": "v2-online_shop-04-3",
+   "type": "PERSON",
+   "value": "Fajar Tan"
+  },
+  {
+   "id": "v2-online_shop-04-4",
+   "type": "PERSON",
+   "value": "Rizky Hartono"
+  },
+  {
+   "id": "v2-online_shop-04-5",
+   "type": "PERSON",
+   "value": "Maria Hartono"
+  },
+  {
+   "id": "v2-online_shop-04-6",
+   "type": "PERSON",
+   "value": "Wayan Sihombing"
+  },
+  {
+   "id": "v2-online_shop-04-7",
+   "type": "PERSON",
+   "value": "Wayan Wijaya"
+  },
+  {
+   "id": "v2-clinic-00-0",
+   "type": "PERSON",
+   "value": "Ujang Harahap"
+  },
+  {
+   "id": "v2-clinic-00-1",
+   "type": "PERSON",
+   "value": "Yusuf Tanoto"
+  },
+  {
+   "id": "v2-clinic-00-2",
+   "type": "PERSON",
+   "value": "Mulyono"
+  },
+  {
+   "id": "v2-clinic-00-3",
+   "type": "PERSON",
+   "value": "Fauzi Susanto"
+  },
+  {
+   "id": "v2-clinic-00-4",
+   "type": "PERSON",
+   "value": "Nenden Pangaribuan"
+  },
+  {
+   "id": "v2-clinic-00-5",
+   "type": "PERSON",
+   "value": "Putu Kusuma"
+  },
+  {
+   "id": "v2-clinic-00-6",
+   "type": "PERSON",
+   "value": "Bambang Hutapea"
+  },
+  {
+   "id": "v2-clinic-00-7",
+   "type": "PERSON",
+   "value": "Felicia Santoso"
+  },
+  {
+   "id": "v2-clinic-01-0",
+   "type": "PERSON",
+   "value": "Grace Gunawan"
+  },
+  {
+   "id": "v2-clinic-01-0",
+   "type": "ORG",
+   "value": "PT Cahaya Timur Lestari"
+  },
+  {
+   "id": "v2-clinic-01-1",
+   "type": "PERSON",
+   "value": "Andi"
+  },
+  {
+   "id": "v2-clinic-01-1",
+   "type": "ORG",
+   "value": "PT Karya Nusantara Teknik"
+  },
+  {
+   "id": "v2-clinic-01-2",
+   "type": "PERSON",
+   "value": "Yusuf Firmansyah"
+  },
+  {
+   "id": "v2-clinic-01-2",
+   "type": "ORG",
+   "value": "PT Agro Lestari Makmur"
+  },
+  {
+   "id": "v2-clinic-01-3",
+   "type": "PERSON",
+   "value": "Fauzi Siregar"
+  },
+  {
+   "id": "v2-clinic-01-3",
+   "type": "ORG",
+   "value": "PT Sinar Mas Sentosa"
+  },
+  {
+   "id": "v2-clinic-01-4",
+   "type": "PERSON",
+   "value": "Putri Sitompul"
+  },
+  {
+   "id": "v2-clinic-01-4",
+   "type": "ORG",
+   "value": "PT Agro Lestari Makmur"
+  },
+  {
+   "id": "v2-clinic-01-5",
+   "type": "PERSON",
+   "value": "Putu Kurniawan"
+  },
+  {
+   "id": "v2-clinic-01-5",
+   "type": "ORG",
+   "value": "Klinik Sehat Sentosa"
+  },
+  {
+   "id": "v2-clinic-01-6",
+   "type": "PERSON",
+   "value": "Grace Setiawan"
+  },
+  {
+   "id": "v2-clinic-01-6",
+   "type": "ORG",
+   "value": "Koperasi Sejahtera Bersama"
+  },
+  {
+   "id": "v2-clinic-01-7",
+   "type": "PERSON",
+   "value": "Wagiman"
+  },
+  {
+   "id": "v2-clinic-01-7",
+   "type": "ORG",
+   "value": "PT Prima Data Solusi"
+  },
+  {
+   "id": "v2-clinic-02-0",
+   "type": "PERSON",
+   "value": "Kartika Tan"
+  },
+  {
+   "id": "v2-clinic-02-1",
+   "type": "PERSON",
+   "value": "Made Santoso"
+  },
+  {
+   "id": "v2-clinic-02-2",
+   "type": "PERSON",
+   "value": "Mulyono"
+  },
+  {
+   "id": "v2-clinic-02-3",
+   "type": "PERSON",
+   "value": "Galih Pratama"
+  },
+  {
+   "id": "v2-clinic-02-4",
+   "type": "PERSON",
+   "value": "Andi Santoso"
+  },
+  {
+   "id": "v2-clinic-02-5",
+   "type": "PERSON",
+   "value": "Fajar"
+  },
+  {
+   "id": "v2-clinic-02-6",
+   "type": "PERSON",
+   "value": "Sri Rahmawati"
+  },
+  {
+   "id": "v2-clinic-02-7",
+   "type": "PERSON",
+   "value": "Made Lim"
+  },
+  {
+   "id": "v2-clinic-03-0",
+   "type": "PERSON",
+   "value": "Mulyono"
+  },
+  {
+   "id": "v2-clinic-03-1",
+   "type": "PERSON",
+   "value": "Mulyono"
+  },
+  {
+   "id": "v2-clinic-03-2",
+   "type": "PERSON",
+   "value": "Asep Rahmawati"
+  },
+  {
+   "id": "v2-clinic-03-3",
+   "type": "PERSON",
+   "value": "Hasan Saputra"
+  },
+  {
+   "id": "v2-clinic-03-4",
+   "type": "PERSON",
+   "value": "Yohanes Wijaya"
+  },
+  {
+   "id": "v2-clinic-03-5",
+   "type": "PERSON",
+   "value": "Nenden Nugroho"
+  },
+  {
+   "id": "v2-clinic-03-6",
+   "type": "PERSON",
+   "value": "Citra Susanto"
+  },
+  {
+   "id": "v2-clinic-03-7",
+   "type": "PERSON",
+   "value": "Indah Puspitasari"
+  },
+  {
+   "id": "v2-school-00-0",
+   "type": "PERSON",
+   "value": "Rahmat Saputra"
+  },
+  {
+   "id": "v2-school-00-0",
+   "type": "PERSON",
+   "value": "Kadek Nugroho"
+  },
+  {
+   "id": "v2-school-00-1",
+   "type": "PERSON",
+   "value": "Fajar Wibowo"
+  },
+  {
+   "id": "v2-school-00-1",
+   "type": "PERSON",
+   "value": "Cecep Harahap"
+  },
+  {
+   "id": "v2-school-00-2",
+   "type": "PERSON",
+   "value": "Nenden"
+  },
+  {
+   "id": "v2-school-00-2",
+   "type": "PERSON",
+   "value": "Grace Lubis"
+  },
+  {
+   "id": "v2-school-00-3",
+   "type": "PERSON",
+   "value": "Rizky Sitompul"
+  },
+  {
+   "id": "v2-school-00-3",
+   "type": "PERSON",
+   "value": "Sutrisno"
+  },
+  {
+   "id": "v2-school-00-4",
+   "type": "PERSON",
+   "value": "Sumarni"
+  },
+  {
+   "id": "v2-school-00-4",
+   "type": "PERSON",
+   "value": "Kadek Pangaribuan"
+  },
+  {
+   "id": "v2-school-00-5",
+   "type": "PERSON",
+   "value": "Ayu"
+  },
+  {
+   "id": "v2-school-00-5",
+   "type": "PERSON",
+   "value": "Fauzi Simanjuntak"
+  },
+  {
+   "id": "v2-school-00-6",
+   "type": "PERSON",
+   "value": "Kevin Putra"
+  },
+  {
+   "id": "v2-school-00-6",
+   "type": "PERSON",
+   "value": "Fauzi Harahap"
+  },
+  {
+   "id": "v2-school-00-7",
+   "type": "PERSON",
+   "value": "Budi Hutapea"
+  },
+  {
+   "id": "v2-school-00-7",
+   "type": "PERSON",
+   "value": "Ahmad Halim"
+  },
+  {
+   "id": "v2-school-01-0",
+   "type": "PERSON",
+   "value": "Maria Setiawan"
+  },
+  {
+   "id": "v2-school-01-1",
+   "type": "PERSON",
+   "value": "Teguh Wibowo"
+  },
+  {
+   "id": "v2-school-01-2",
+   "type": "PERSON",
+   "value": "Suparman"
+  },
+  {
+   "id": "v2-school-01-3",
+   "type": "PERSON",
+   "value": "Sri Manurung"
+  },
+  {
+   "id": "v2-school-01-4",
+   "type": "PERSON",
+   "value": "Muhammad Susanto"
+  },
+  {
+   "id": "v2-school-01-5",
+   "type": "PERSON",
+   "value": "Andi Hidayat"
+  },
+  {
+   "id": "v2-school-01-6",
+   "type": "PERSON",
+   "value": "Cecep Hartono"
+  },
+  {
+   "id": "v2-school-01-7",
+   "type": "PERSON",
+   "value": "Komang"
+  },
+  {
+   "id": "v2-school-02-0",
+   "type": "PERSON",
+   "value": "Michael Lim"
+  },
+  {
+   "id": "v2-school-02-1",
+   "type": "PERSON",
+   "value": "Cecep Wibowo"
+  },
+  {
+   "id": "v2-school-02-2",
+   "type": "PERSON",
+   "value": "Sri Sihombing"
+  },
+  {
+   "id": "v2-school-02-3",
+   "type": "PERSON",
+   "value": "Kevin Pangaribuan"
+  },
+  {
+   "id": "v2-school-02-4",
+   "type": "PERSON",
+   "value": "Bayu"
+  },
+  {
+   "id": "v2-school-02-5",
+   "type": "PERSON",
+   "value": "Zainal Manurung"
+  },
+  {
+   "id": "v2-school-02-6",
+   "type": "PERSON",
+   "value": "Cecep Wijaya"
+  },
+  {
+   "id": "v2-school-02-7",
+   "type": "PERSON",
+   "value": "Budi Rahmawati"
+  },
+  {
+   "id": "v2-loan_app-00-0",
+   "type": "PERSON",
+   "value": "Grace Putra"
+  },
+  {
+   "id": "v2-loan_app-00-1",
+   "type": "PERSON",
+   "value": "Muhammad Puspitasari"
+  },
+  {
+   "id": "v2-loan_app-00-2",
+   "type": "PERSON",
+   "value": "Cecep Setiawan"
+  },
+  {
+   "id": "v2-loan_app-00-3",
+   "type": "PERSON",
+   "value": "Joko Simanjuntak"
+  },
+  {
+   "id": "v2-loan_app-00-4",
+   "type": "PERSON",
+   "value": "Nur Harahap"
+  },
+  {
+   "id": "v2-loan_app-00-5",
+   "type": "PERSON",
+   "value": "Siti Wijaya"
+  },
+  {
+   "id": "v2-loan_app-00-6",
+   "type": "PERSON",
+   "value": "Kevin Permana"
+  },
+  {
+   "id": "v2-loan_app-00-7",
+   "type": "PERSON",
+   "value": "Suparman"
+  },
+  {
+   "id": "v2-loan_app-01-0",
+   "type": "PERSON",
+   "value": "Kartika Kusuma"
+  },
+  {
+   "id": "v2-loan_app-01-0",
+   "type": "PERSON",
+   "value": "Bayu"
+  },
+  {
+   "id": "v2-loan_app-01-1",
+   "type": "PERSON",
+   "value": "Sukarti"
+  },
+  {
+   "id": "v2-loan_app-01-1",
+   "type": "PERSON",
+   "value": "Suparman"
+  },
+  {
+   "id": "v2-loan_app-01-2",
+   "type": "PERSON",
+   "value": "Dewi Lim"
+  },
+  {
+   "id": "v2-loan_app-01-2",
+   "type": "PERSON",
+   "value": "Ahmad Santoso"
+  },
+  {
+   "id": "v2-loan_app-01-3",
+   "type": "PERSON",
+   "value": "Teguh Permana"
+  },
+  {
+   "id": "v2-loan_app-01-3",
+   "type": "PERSON",
+   "value": "Mulyono"
+  },
+  {
+   "id": "v2-loan_app-01-4",
+   "type": "PERSON",
+   "value": "Mulyono"
+  },
+  {
+   "id": "v2-loan_app-01-4",
+   "type": "PERSON",
+   "value": "Teguh Sihombing"
+  },
+  {
+   "id": "v2-loan_app-01-5",
+   "type": "PERSON",
+   "value": "Wayan Gunawan"
+  },
+  {
+   "id": "v2-loan_app-01-5",
+   "type": "PERSON",
+   "value": "Fajar Santoso"
+  },
+  {
+   "id": "v2-loan_app-01-6",
+   "type": "PERSON",
+   "value": "Nenden Firmansyah"
+  },
+  {
+   "id": "v2-loan_app-01-6",
+   "type": "PERSON",
+   "value": "Rina Siregar"
+  },
+  {
+   "id": "v2-loan_app-01-7",
+   "type": "PERSON",
+   "value": "Michael Kurniawan"
+  },
+  {
+   "id": "v2-loan_app-01-7",
+   "type": "PERSON",
+   "value": "Wahyu"
+  },
+  {
+   "id": "v2-loan_app-02-0",
+   "type": "PERSON",
+   "value": "Wulan"
+  },
+  {
+   "id": "v2-loan_app-02-1",
+   "type": "PERSON",
+   "value": "Sukarti"
+  },
+  {
+   "id": "v2-loan_app-02-2",
+   "type": "PERSON",
+   "value": "Rina Santoso"
+  },
+  {
+   "id": "v2-loan_app-02-3",
+   "type": "PERSON",
+   "value": "Mulyono"
+  },
+  {
+   "id": "v2-loan_app-02-4",
+   "type": "PERSON",
+   "value": "Wagiman"
+  },
+  {
+   "id": "v2-loan_app-02-5",
+   "type": "PERSON",
+   "value": "Grace Santoso"
+  },
+  {
+   "id": "v2-loan_app-02-6",
+   "type": "PERSON",
+   "value": "Siti Wibowo"
+  },
+  {
+   "id": "v2-loan_app-02-7",
+   "type": "PERSON",
+   "value": "Yusuf Sihombing"
+  },
+  {
+   "id": "v2-loan_app-03-0",
+   "type": "PERSON",
+   "value": "Lestari Susanto"
+  },
+  {
+   "id": "v2-loan_app-03-1",
+   "type": "PERSON",
+   "value": "Sutrisno"
+  },
+  {
+   "id": "v2-loan_app-03-2",
+   "type": "PERSON",
+   "value": "Sri"
+  },
+  {
+   "id": "v2-loan_app-03-3",
+   "type": "PERSON",
+   "value": "Sumarni"
+  },
+  {
+   "id": "v2-loan_app-03-4",
+   "type": "PERSON",
+   "value": "Abdullah Ramadhan"
+  },
+  {
+   "id": "v2-loan_app-03-5",
+   "type": "PERSON",
+   "value": "Siti Sitompul"
+  },
+  {
+   "id": "v2-loan_app-03-6",
+   "type": "PERSON",
+   "value": "Wayan Kusuma"
+  },
+  {
+   "id": "v2-loan_app-03-7",
+   "type": "PERSON",
+   "value": "Hendra Sihombing"
+  },
+  {
+   "id": "v2-rt_letter-00-0",
+   "type": "PERSON",
+   "value": "Bayu Manurung"
+  },
+  {
+   "id": "v2-rt_letter-00-1",
+   "type": "PERSON",
+   "value": "Kartika"
+  },
+  {
+   "id": "v2-rt_letter-00-2",
+   "type": "PERSON",
+   "value": "Stefanus Sitompul"
+  },
+  {
+   "id": "v2-rt_letter-00-3",
+   "type": "PERSON",
+   "value": "Yusuf Pangaribuan"
+  },
+  {
+   "id": "v2-rt_letter-00-4",
+   "type": "PERSON",
+   "value": "Muhammad Halim"
+  },
+  {
+   "id": "v2-rt_letter-00-5",
+   "type": "PERSON",
+   "value": "Rizky Sitompul"
+  },
+  {
+   "id": "v2-rt_letter-00-6",
+   "type": "PERSON",
+   "value": "Ketut Hutapea"
+  },
+  {
+   "id": "v2-rt_letter-00-7",
+   "type": "PERSON",
+   "value": "Yusuf Susanto"
+  },
+  {
+   "id": "v2-rt_letter-01-0",
+   "type": "PERSON",
+   "value": "Fauzi Tanoto"
+  },
+  {
+   "id": "v2-rt_letter-01-1",
+   "type": "PERSON",
+   "value": "Tukiyem"
+  },
+  {
+   "id": "v2-rt_letter-01-2",
+   "type": "PERSON",
+   "value": "Muhammad"
+  },
+  {
+   "id": "v2-rt_letter-01-3",
+   "type": "PERSON",
+   "value": "Nenden Sihombing"
+  },
+  {
+   "id": "v2-rt_letter-01-4",
+   "type": "PERSON",
+   "value": "Putri Nugroho"
+  },
+  {
+   "id": "v2-rt_letter-01-5",
+   "type": "PERSON",
+   "value": "Kartika Lubis"
+  },
+  {
+   "id": "v2-rt_letter-01-6",
+   "type": "PERSON",
+   "value": "Dadang"
+  },
+  {
+   "id": "v2-rt_letter-01-7",
+   "type": "PERSON",
+   "value": "Bambang Saputra"
+  },
+  {
+   "id": "v2-rental-00-0",
+   "type": "PERSON",
+   "value": "Joko Manurung"
+  },
+  {
+   "id": "v2-rental-00-1",
+   "type": "PERSON",
+   "value": "Yusuf Tanoto"
+  },
+  {
+   "id": "v2-rental-00-2",
+   "type": "PERSON",
+   "value": "Ujang Nasution"
+  },
+  {
+   "id": "v2-rental-00-3",
+   "type": "PERSON",
+   "value": "Galih Nugroho"
+  },
+  {
+   "id": "v2-rental-00-4",
+   "type": "PERSON",
+   "value": "Putu Rahmawati"
+  },
+  {
+   "id": "v2-rental-00-5",
+   "type": "PERSON",
+   "value": "Kadek Halim"
+  },
+  {
+   "id": "v2-rental-00-6",
+   "type": "PERSON",
+   "value": "Ayu Permana"
+  },
+  {
+   "id": "v2-rental-00-7",
+   "type": "PERSON",
+   "value": "Wahyu"
+  },
+  {
+   "id": "v2-rental-01-0",
+   "type": "PERSON",
+   "value": "Bayu"
+  },
+  {
+   "id": "v2-rental-01-1",
+   "type": "PERSON",
+   "value": "Ayu Hutapea"
+  },
+  {
+   "id": "v2-rental-01-2",
+   "type": "PERSON",
+   "value": "Teguh Tan"
+  },
+  {
+   "id": "v2-rental-01-3",
+   "type": "PERSON",
+   "value": "Hendra Pangaribuan"
+  },
+  {
+   "id": "v2-rental-01-4",
+   "type": "PERSON",
+   "value": "Putri Wibowo"
+  },
+  {
+   "id": "v2-rental-01-5",
+   "type": "PERSON",
+   "value": "Dian Pratama"
+  },
+  {
+   "id": "v2-rental-01-6",
+   "type": "PERSON",
+   "value": "Ahmad Permana"
+  },
+  {
+   "id": "v2-rental-01-7",
+   "type": "PERSON",
+   "value": "Ayu Sihombing"
+  },
+  {
+   "id": "v2-rental-02-0",
+   "type": "PERSON",
+   "value": "Bayu Utami"
+  },
+  {
+   "id": "v2-rental-02-1",
+   "type": "PERSON",
+   "value": "Budi"
+  },
+  {
+   "id": "v2-rental-02-2",
+   "type": "PERSON",
+   "value": "Nenden Setiawan"
+  },
+  {
+   "id": "v2-rental-02-3",
+   "type": "PERSON",
+   "value": "Lestari Ramadhan"
+  },
+  {
+   "id": "v2-rental-02-4",
+   "type": "PERSON",
+   "value": "Made Setiawan"
+  },
+  {
+   "id": "v2-rental-02-5",
+   "type": "PERSON",
+   "value": "Joko Hidayat"
+  },
+  {
+   "id": "v2-rental-02-6",
+   "type": "PERSON",
+   "value": "Muhammad Harahap"
+  },
+  {
+   "id": "v2-rental-02-7",
+   "type": "PERSON",
+   "value": "Wulan Hartono"
+  },
+  {
+   "id": "v2-insurance-00-0",
+   "type": "PERSON",
+   "value": "Mulyono"
+  },
+  {
+   "id": "v2-insurance-00-0",
+   "type": "ORG",
+   "value": "Yayasan Harapan Bangsa"
+  },
+  {
+   "id": "v2-insurance-00-1",
+   "type": "PERSON",
+   "value": "Andi Gunawan"
+  },
+  {
+   "id": "v2-insurance-00-1",
+   "type": "ORG",
+   "value": "PT Agro Lestari Makmur"
+  },
+  {
+   "id": "v2-insurance-00-2",
+   "type": "PERSON",
+   "value": "Nenden Sihombing"
+  },
+  {
+   "id": "v2-insurance-00-2",
+   "type": "ORG",
+   "value": "Koperasi Sejahtera Bersama"
+  },
+  {
+   "id": "v2-insurance-00-3",
+   "type": "PERSON",
+   "value": "Indah"
+  },
+  {
+   "id": "v2-insurance-00-3",
+   "type": "ORG",
+   "value": "PT Cahaya Timur Lestari"
+  },
+  {
+   "id": "v2-insurance-00-4",
+   "type": "PERSON",
+   "value": "Sukarti"
+  },
+  {
+   "id": "v2-insurance-00-4",
+   "type": "ORG",
+   "value": "PT Agro Lestari Makmur"
+  },
+  {
+   "id": "v2-insurance-00-5",
+   "type": "PERSON",
+   "value": "Indah Wijaya"
+  },
+  {
+   "id": "v2-insurance-00-5",
+   "type": "ORG",
+   "value": "PT Global Logistik Indonesia"
+  },
+  {
+   "id": "v2-insurance-00-6",
+   "type": "PERSON",
+   "value": "Budi Puspitasari"
+  },
+  {
+   "id": "v2-insurance-00-6",
+   "type": "ORG",
+   "value": "PT Global Logistik Indonesia"
+  },
+  {
+   "id": "v2-insurance-00-7",
+   "type": "PERSON",
+   "value": "Sumarni"
+  },
+  {
+   "id": "v2-insurance-00-7",
+   "type": "ORG",
+   "value": "PT Maju Jaya Abadi"
+  },
+  {
+   "id": "v2-insurance-01-0",
+   "type": "PERSON",
+   "value": "Citra Rahmawati"
+  },
+  {
+   "id": "v2-insurance-01-1",
+   "type": "PERSON",
+   "value": "Hendra Lim"
+  },
+  {
+   "id": "v2-insurance-01-2",
+   "type": "PERSON",
+   "value": "Teguh Simanjuntak"
+  },
+  {
+   "id": "v2-insurance-01-3",
+   "type": "PERSON",
+   "value": "Ujang Harahap"
+  },
+  {
+   "id": "v2-insurance-01-4",
+   "type": "PERSON",
+   "value": "Bambang Puspitasari"
+  },
+  {
+   "id": "v2-insurance-01-5",
+   "type": "PERSON",
+   "value": "Dian Putra"
+  },
+  {
+   "id": "v2-insurance-01-6",
+   "type": "PERSON",
+   "value": "Bayu Hidayat"
+  },
+  {
+   "id": "v2-insurance-01-7",
+   "type": "PERSON",
+   "value": "Putu"
+  },
+  {
+   "id": "v2-social_dm-01-0",
+   "type": "PERSON",
+   "value": "Sri Setiawan"
+  },
+  {
+   "id": "v2-social_dm-01-1",
+   "type": "PERSON",
+   "value": "Agus"
+  },
+  {
+   "id": "v2-social_dm-01-2",
+   "type": "PERSON",
+   "value": "Budi Rahmawati"
+  },
+  {
+   "id": "v2-social_dm-01-3",
+   "type": "PERSON",
+   "value": "Tukiyem"
+  },
+  {
+   "id": "v2-social_dm-01-4",
+   "type": "PERSON",
+   "value": "Joko Susanto"
+  },
+  {
+   "id": "v2-social_dm-01-5",
+   "type": "PERSON",
+   "value": "Sumarni"
+  },
+  {
+   "id": "v2-social_dm-01-6",
+   "type": "PERSON",
+   "value": "Tukiyem"
+  },
+  {
+   "id": "v2-social_dm-01-7",
+   "type": "PERSON",
+   "value": "Ketut Hartono"
+  },
+  {
+   "id": "v2-business_email-00-0",
+   "type": "PERSON",
+   "value": "Rizky"
+  },
+  {
+   "id": "v2-business_email-00-0",
+   "type": "ORG",
+   "value": "PT Global Logistik Indonesia"
+  },
+  {
+   "id": "v2-business_email-00-0",
+   "type": "ORG",
+   "value": "Koperasi Sejahtera Bersama"
+  },
+  {
+   "id": "v2-business_email-00-1",
+   "type": "PERSON",
+   "value": "Wagiman"
+  },
+  {
+   "id": "v2-business_email-00-1",
+   "type": "ORG",
+   "value": "PT Karya Nusantara Teknik"
+  },
+  {
+   "id": "v2-business_email-00-1",
+   "type": "ORG",
+   "value": "PT Cahaya Timur Lestari"
+  },
+  {
+   "id": "v2-business_email-00-2",
+   "type": "PERSON",
+   "value": "Yohanes Utami"
+  },
+  {
+   "id": "v2-business_email-00-2",
+   "type": "ORG",
+   "value": "PT Maju Jaya Abadi"
+  },
+  {
+   "id": "v2-business_email-00-2",
+   "type": "ORG",
+   "value": "PT Agro Lestari Makmur"
+  },
+  {
+   "id": "v2-business_email-00-3",
+   "type": "PERSON",
+   "value": "Agus Saputra"
+  },
+  {
+   "id": "v2-business_email-00-3",
+   "type": "ORG",
+   "value": "PT Global Logistik Indonesia"
+  },
+  {
+   "id": "v2-business_email-00-3",
+   "type": "ORG",
+   "value": "PT Sinar Mas Sentosa"
+  },
+  {
+   "id": "v2-business_email-00-4",
+   "type": "PERSON",
+   "value": "Joko Harahap"
+  },
+  {
+   "id": "v2-business_email-00-4",
+   "type": "ORG",
+   "value": "Yayasan Harapan Bangsa"
+  },
+  {
+   "id": "v2-business_email-00-4",
+   "type": "ORG",
+   "value": "PT Maju Jaya Abadi"
+  },
+  {
+   "id": "v2-business_email-00-5",
+   "type": "PERSON",
+   "value": "Michael Sitompul"
+  },
+  {
+   "id": "v2-business_email-00-5",
+   "type": "ORG",
+   "value": "PT Maju Jaya Abadi"
+  },
+  {
+   "id": "v2-business_email-00-5",
+   "type": "ORG",
+   "value": "CV Berkah Mandiri"
+  },
+  {
+   "id": "v2-business_email-00-6",
+   "type": "PERSON",
+   "value": "Kevin Utami"
+  },
+  {
+   "id": "v2-business_email-00-6",
+   "type": "ORG",
+   "value": "CV Sumber Rejeki"
+  },
+  {
+   "id": "v2-business_email-00-6",
+   "type": "ORG",
+   "value": "Yayasan Harapan Bangsa"
+  },
+  {
+   "id": "v2-business_email-00-7",
+   "type": "PERSON",
+   "value": "Hasan Manurung"
+  },
+  {
+   "id": "v2-business_email-00-7",
+   "type": "ORG",
+   "value": "Klinik Sehat Sentosa"
+  },
+  {
+   "id": "v2-business_email-00-7",
+   "type": "ORG",
+   "value": "PT Global Logistik Indonesia"
+  },
+  {
+   "id": "v2-business_email-01-0",
+   "type": "PERSON",
+   "value": "Sumarni"
+  },
+  {
+   "id": "v2-business_email-01-1",
+   "type": "PERSON",
+   "value": "Galih"
+  },
+  {
+   "id": "v2-business_email-01-2",
+   "type": "PERSON",
+   "value": "Joko Lubis"
+  },
+  {
+   "id": "v2-business_email-01-3",
+   "type": "PERSON",
+   "value": "Maria Kusuma"
+  },
+  {
+   "id": "v2-business_email-01-4",
+   "type": "PERSON",
+   "value": "Andi Pangaribuan"
+  },
+  {
+   "id": "v2-business_email-01-5",
+   "type": "PERSON",
+   "value": "Dewi Puspitasari"
+  },
+  {
+   "id": "v2-business_email-01-6",
+   "type": "PERSON",
+   "value": "Rizky Manurung"
+  },
+  {
+   "id": "v2-business_email-01-7",
+   "type": "PERSON",
+   "value": "Sukarti"
+  },
+  {
+   "id": "v2-business_email-02-0",
+   "type": "PERSON",
+   "value": "Michael Setiawan"
+  },
+  {
+   "id": "v2-business_email-02-1",
+   "type": "PERSON",
+   "value": "Zainal Hutapea"
+  },
+  {
+   "id": "v2-business_email-02-2",
+   "type": "PERSON",
+   "value": "Dadang"
+  },
+  {
+   "id": "v2-business_email-02-3",
+   "type": "PERSON",
+   "value": "Dewi Lubis"
+  },
+  {
+   "id": "v2-business_email-02-4",
+   "type": "PERSON",
+   "value": "Dimas"
+  },
+  {
+   "id": "v2-business_email-02-5",
+   "type": "PERSON",
+   "value": "Tukiyem"
+  },
+  {
+   "id": "v2-business_email-02-6",
+   "type": "PERSON",
+   "value": "Wulan Pratama"
+  },
+  {
+   "id": "v2-business_email-02-7",
+   "type": "PERSON",
+   "value": "Rizky"
+  }
+ ]
+}

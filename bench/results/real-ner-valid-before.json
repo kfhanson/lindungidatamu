@@ -1,0 +1,118 @@
+{
+ "NERGrit · GLiNER alone": {
+  "people": [
+   190,
+   213
+  ],
+  "orgs": [
+   105,
+   121
+  ],
+  "over": 91,
+  "over_examples": {
+   "PERSON: Ia": 4,
+   "PERSON: guru": 3,
+   "ORG: Sekolah Pembangunan": 3,
+   "PERSON: siswa": 2,
+   "ORG: SMK": 2,
+   "ORG: Twitter": 2,
+   "ORG: The Fame": 2,
+   "ORG: Guinness Book": 1,
+   "ORG: Pizza Hut": 1,
+   "ORG: K - Mart": 1,
+   "ORG: Civil Forum on The Presidency": 1,
+   "ADDRESS: gerejanya": 1,
+   "ORG: PT .": 1,
+   "PERSON: Miss Momoco Club": 1,
+   "ORG: 86 Momoco Party": 1
+  },
+  "ms_per_text": 142.5
+ },
+ "NERGrit · lindungidatamu": {
+  "people": [
+   190,
+   213
+  ],
+  "orgs": [
+   104,
+   121
+  ],
+  "over": 71,
+  "over_examples": {
+   "PERSON: Ia": 4,
+   "ORG: Sekolah Pembangunan": 3,
+   "ORG: SMK": 2,
+   "ORG: Twitter": 2,
+   "ORG: The Fame": 2,
+   "ORG: Guinness Book": 1,
+   "ORG: Pizza Hut": 1,
+   "ORG: K - Mart": 1,
+   "ORG: Civil Forum on The Presidency": 1,
+   "ADDRESS: gerejanya": 1,
+   "ORG: PT .": 1,
+   "PERSON: Miss Momoco Club": 1,
+   "ORG: 86 Momoco Party": 1,
+   "ORG: Total Football": 1,
+   "ORG: Band": 1
+  },
+  "ms_per_text": 144.3
+ },
+ "NERP · GLiNER alone": {
+  "people": [
+   578,
+   644
+  ],
+  "orgs": [
+   0,
+   0
+  ],
+  "over": 625,
+  "over_examples": {
+   "ORG: kpk": 16,
+   "PERSON: saya": 13,
+   "ORG: pks": 11,
+   "ORG: partai demokrat": 9,
+   "PERSON: dia": 9,
+   "ORG: golkar": 9,
+   "PERSON: pks": 9,
+   "ORG: dpr": 8,
+   "PERSON: presiden": 8,
+   "ORG: koalisi": 8,
+   "PERSON: katanya": 7,
+   "ORG: pemerintah": 7,
+   "ORG: polisi": 7,
+   "PERSON: menurut dia": 6,
+   "ORG: partai": 6
+  },
+  "ms_per_text": 142.5
+ },
+ "NERP · lindungidatamu": {
+  "people": [
+   557,
+   644
+  ],
+  "orgs": [
+   0,
+   0
+  ],
+  "over": 192,
+  "over_examples": {
+   "PERSON: dia": 9,
+   "PERSON: pks": 9,
+   "PERSON: katanya": 7,
+   "PERSON: menurut dia": 6,
+   "PERSON: korban": 6,
+   "PERSON: anda": 5,
+   "PERSON: pengunjung": 4,
+   "PERSON: kamu": 3,
+   "ADDRESS: rumahnya": 3,
+   "PERSON: hamas": 3,
+   "PERSON: sipir": 3,
+   "PERSON: ia": 3,
+   "PERSON: petani": 2,
+   "PERSON: konsumen": 2,
+   "ADDRESS: rumah": 2
+  },
+  "ms_per_text": 176.2
+ }
+}

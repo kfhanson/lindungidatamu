@@ -1,0 +1,41 @@
+[project]
+name = "lindungidatamu"
+version = "0.1.0.dev0"
+description = "Find and mask Indonesian personal data (NIK, NPWP, KK, BPJS, bank accounts, names, addresses) before text reaches an AI model, a log or a dataset."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+keywords = ["pii", "indonesia", "nik", "npwp", "masking", "anonymization", "llm", "privacy", "uu-pdp", "presidio"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Natural Language :: Indonesian",
+    "Topic :: Security",
+    "Topic :: Text Processing",
+]
+dependencies = []
+
+[project.optional-dependencies]
+# GLiNER runs on PyTorch. On an Intel Mac the last PyTorch build is 2.2.2, which needs numpy<2
+# and a transformers release from before 5.
+names = [
+    "gliner>=0.2.13",
+    "protobuf>=4",          # the multilingual model's tokenizer
+    "sentencepiece>=0.2",
+    "torch==2.2.2; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "numpy<2; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "transformers==4.57.6; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+]
+presidio = ["presidio-analyzer>=2.2"]
+
+[project.urls]
+Source = "https://github.com/kfhanson/lindungidatamu"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

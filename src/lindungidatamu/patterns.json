@@ -1,0 +1,205 @@
+{
+ "_comment": "Indonesian personal data and secrets, as regular expressions with checks. `type` is what a match is masked as ([NIK_1]); `group` is the part that is the value (a label before it isn't); `validator` names a check in validators.py; `allow` lists values that never match (public test card numbers). Order matters where two patterns can match the same text: the earlier one wins. tests/fixtures.json is the behaviour, case by case.",
+ "version": "2026-10-31.1",
+ "patterns": [
+  {
+   "id": "private_key",
+   "type": "SECRET",
+   "pattern": "-----BEGIN (?:RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY-----"
+  },
+  {
+   "id": "aws_access_key",
+   "type": "SECRET",
+   "pattern": "\\b(?:AKIA|ASIA)[0-9A-Z]{16}\\b"
+  },
+  {
+   "id": "github_token",
+   "type": "SECRET",
+   "pattern": "\\b(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{40,})\\b"
+  },
+  {
+   "id": "anthropic_key",
+   "type": "SECRET",
+   "pattern": "\\bsk-ant-[A-Za-z0-9_-]{20,}"
+  },
+  {
+   "id": "openai_key",
+   "type": "SECRET",
+   "pattern": "\\bsk-(?!ant-)(?:proj-|svcacct-)?[A-Za-z0-9_-]{32,}"
+  },
+  {
+   "id": "slack_token",
+   "type": "SECRET",
+   "pattern": "\\bxox[abposr]-[A-Za-z0-9-]{10,}"
+  },
+  {
+   "id": "google_api_key",
+   "type": "SECRET",
+   "pattern": "\\bAIza[0-9A-Za-z_-]{35}\\b"
+  },
+  {
+   "id": "jwt",
+   "type": "SECRET",
+   "pattern": "\\beyJ[A-Za-z0-9_-]{10,}\\.eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}"
+  },
+  {
+   "id": "connection_string",
+   "type": "SECRET",
+   "pattern": "\\b(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\\+srv)?|redis|amqp|mssql)://[^\\s:@/]+:[^\\s@/]+@"
+  },
+  {
+   "id": "password_assignment",
+   "type": "SECRET",
+   "pattern": "(?:password|passwd|pwd|kata ?sandi|sandi)\\s*[:=]\\s*[^\\s,;]{6,}",
+   "flags": "i"
+  },
+  {
+   "id": "payment_card",
+   "type": "CARD",
+   "pattern": "\\b(?:\\d[ -]?){12,18}\\d\\b",
+   "validator": "luhn_card",
+   "allow": [
+    "4111111111111111",
+    "4242424242424242",
+    "4012888888881881",
+    "4000056655665556",
+    "4000000000000002",
+    "4000000000000077",
+    "4000000000000341",
+    "4005550000000001",
+    "4917610000000000",
+    "5555555555554444",
+    "5105105105105100",
+    "5200828282828210",
+    "5454545454545454",
+    "2223003122003222",
+    "5555341244441115",
+    "5212345678901234",
+    "378282246310005",
+    "371449635398431",
+    "378734493671000",
+    "6011111111111117",
+    "6011000990139424",
+    "3530111333300000",
+    "3566002020360505",
+    "30569309025904",
+    "38520000023237",
+    "6200000000000005"
+   ]
+  },
+  {
+   "id": "id_kk_labelled",
+   "type": "KK",
+   "_comment": "Family card (Kartu Keluarga) number after its label. Before id_nik: a KK number has the same shape as a NIK.",
+   "pattern": "(?:\\bKK|kartu\\s+keluarga)(?:\\s*(?:no\\.?|nomor|number))?\\s*[:.]?\\s*(\\d{16})\\b",
+   "flags": "i",
+   "group": 1
+  },
+  {
+   "id": "id_passport_labelled",
+   "type": "PASSPORT",
+   "_comment": "Passport number after its label: one or two letters and 6-7 digits (Indonesian passports: a letter and 7 digits).",
+   "pattern": "(?:paspor|passport)(?:\\s*(?:no\\.?|nomor|number|num\\.?|#))?\\s*[:.]?\\s*([A-Z]{1,2}\\s?\\d{6,7})\\b",
+   "flags": "i",
+   "group": 1
+  },
+  {
+   "id": "id_bpjs_labelled",
+   "type": "BPJS",
+   "_comment": "BPJS Kesehatan / Ketenagakerjaan card number after the word BPJS, with up to three words between (BPJS Kesehatan no., bpjs aku).",
+   "pattern": "\\bBPJS(?:\\s+(?!\\d)[A-Za-z][\\w/.()-]*){0,3}?\\s*[:.]?\\s*(\\d{11,13})\\b",
+   "flags": "i",
+   "group": 1
+  },
+  {
+   "id": "id_sim_labelled",
+   "type": "SIM",
+   "_comment": "Driving licence (SIM) number after its label (12-14 digits). Case-sensitive SIM: the word, not a SIM card (whose numbers are 19-20 digits anyway).",
+   "pattern": "\\bSIM(?:\\s*[ABCD]\\d?)?(?:\\s*(?:[Nn]o\\.?|[Nn]omor|[Nn]umber))?\\s*[:.]?\\s*(\\d{12,14})\\b",
+   "group": 1
+  },
+  {
+   "id": "id_npwp_labelled",
+   "type": "NPWP",
+   "_comment": "A number after the NPWP label: the old 15 digits written without dots, or the 16-digit NPWP used since 2024 (an individual's NIK, or 0 + the old 15 digits for a company). Before id_nik, so a labelled 16-digit number counts as an NPWP.",
+   "pattern": "\\bNPWP\\)?(?:\\s+(?!\\d)[A-Za-z][\\w/.()-]*){0,2}?\\s*[:.]?\\s*(\\d{15,16}|\\d{4}[ .-]\\d{4}[ .-]\\d{4}[ .-]\\d{4})\\b",
+   "flags": "i",
+   "group": 1
+  },
+  {
+   "id": "id_nik",
+   "type": "NIK",
+   "_comment": "16 digits, also written in groups (3174 0912 0388 0004, 317409-120388-0004); the validator checks province and birth date",
+   "pattern": "\\b\\d(?:[ .-]?\\d){15}\\b",
+   "validator": "nik"
+  },
+  {
+   "id": "id_nik_labelled",
+   "type": "NIK",
+   "_comment": "A number labelled NIK/KTP that isn't a valid 16-digit NIK (a typo, a digit missing): still someone's ID. `group` 1 is the number, so masking leaves the label.",
+   "pattern": "\\b(?:NIK|KTP|no\\.?\\s?KTP|nomor\\s+KTP|nomor\\s+induk\\s+kependudukan)\\b\\s*(?:[:#=.]|no\\.?)?\\s*(\\d(?:[ .-]?\\d){13,17})(?![\\d])",
+   "flags": "i",
+   "group": 1,
+   "validator": "nik_labelled"
+  },
+  {
+   "id": "id_npwp",
+   "type": "NPWP",
+   "pattern": "\\b\\d{2}\\.\\d{3}\\.\\d{3}\\.\\d-\\d{3}\\.\\d{3}\\b"
+  },
+  {
+   "id": "address_id",
+   "type": "ADDRESS",
+   "pattern": "\\b(?:(?:[Jj]l|JL|[Jj]ln|JLN)\\.?\\s+(?:[A-Za-z][\\w'.-]*\\s+){1,5}?(?:(?:[Nn]o|NO|[Nn]omor|[Bb]lok|BLOK|[Kk]av|KAV|[Kk]m|KM)\\.?\\s*[A-Za-z]{0,2}[/-]?\\d+[A-Za-z]?(?:/\\d+[A-Za-z]?)?|\\d{1,3}[A-Za-z]?)|(?:Jalan|JALAN|[Pp]erumahan|[Pp]erum|[Kk]ompleks|[Kk]omplek|[Kk]omp|[Gg]g|[Gg]ang|[Aa]partemen|[Rr]uko)\\.?\\s+(?:[A-Za-z][\\w'.-]*\\s+){1,5}?(?:[Nn]o|NO|[Nn]omor|[Bb]lok|BLOK|[Kk]av|KAV|[Kk]m|KM)\\.?\\s*[A-Za-z]{0,2}[/-]?\\d+[A-Za-z]?(?:/\\d+[A-Za-z]?)?)\\b(?:\\s*,?\\s*(?:[Nn]o|NO|[Nn]omor|[Bb]lok|BLOK|[Kk]av|KAV|[Kk]m|KM)\\.?\\s*[A-Za-z]{0,2}[/-]?\\d+[A-Za-z]?(?:/\\d+[A-Za-z]?)?\\b)*(?:\\s*,?\\s*RT\\.?\\s*\\d{1,3}\\s*/\\s*RW\\.?\\s*\\d{1,3})?"
+  },
+  {
+   "id": "address_village",
+   "type": "ADDRESS",
+   "_comment": "A village or kampung address that starts with its name and RT/RW (Dusun Krajan RT 002/RW 003); the rest (Desa, Kec., Kab.) is added by the address extension in detect.py.",
+   "pattern": "\\b(?:Dusun|Dsn\\.?|Kampung|Kp\\.)\\s+[A-Z][\\w'-]*(?:\\s+[A-Z][\\w'-]*)?(?=\\s*,?\\s*RT\\b)"
+  },
+  {
+   "id": "email",
+   "type": "EMAIL",
+   "pattern": "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b"
+  },
+  {
+   "id": "phone_id",
+   "type": "PHONE",
+   "pattern": "(?:\\+62[\\s.-]?|\\b62[\\s.-]?|\\b0)8[1-9]\\d{0,2}(?:[\\s.-]?\\d{2,5}){1,4}\\b",
+   "validator": "phone_id",
+   "_comment": "Indonesian mobile numbers: 08.., +62 8.., 62 8.., grouped with spaces, dots or dashes. The check counts 10-13 digits once written with a leading 0."
+  },
+  {
+   "id": "bank_account_labelled",
+   "type": "BANK",
+   "_comment": "A bank account or virtual account number after its label (no. rek., rekening, norek, account no., a/c, VA), with up to three words between them (rek gaji Mandiri, rekening BSI nomor). Bare 9-17 digit numbers are too common to mask without the label.",
+   "pattern": "\\b(?:no(?:mor)?\\.?\\s*)?(?:rek(?:ening)?|acc(?:oun)?t(?:\\s*(?:no|number))?|a/c|VA|virtual\\s+account)\\b\\.?(?:\\s+(?!\\d)[A-Za-z][\\w/.()-]*){0,3}?\\s*[:.]?\\s*(\\d[\\d -]{7,20}\\d)\\b",
+   "flags": "i",
+   "group": 1,
+   "validator": "bank_account"
+  },
+  {
+   "id": "bank_account_named",
+   "type": "BANK",
+   "_comment": "An account number straight after a bank's name, with no label (ditransfer ke BCA 3376106017). Bank names are matched as written (BCA, not bca), so ordinary words don't trigger it; the check wants 9-17 digits.",
+   "pattern": "\\b(?:BCA|BRI|BNI|BTN|BSI|Mandiri|CIMB(?:\\s+Niaga)?|Permata|Danamon|OCBC(?:\\s+NISP)?|Panin|Maybank|Mega|Sinarmas|Jago|Jenius|SeaBank|BJB|Bank\\s+[A-Z][A-Za-z]+)\\s*[:.]?\\s*(\\d[\\d -]{7,20}\\d)\\b",
+   "group": 1,
+   "validator": "bank_account"
+  },
+  {
+   "id": "ip_private",
+   "type": "IP",
+   "_comment": "Private network addresses (10/8, 172.16/12, 192.168/16): internal systems. Masked at any count; three or more in one message is a finding (a log or a network map).",
+   "pattern": "\\b(?:10(?:\\.\\d{1,3}){3}|172\\.(?:1[6-9]|2\\d|3[01])(?:\\.\\d{1,3}){2}|192\\.168(?:\\.\\d{1,3}){2})\\b",
+   "validator": "ipv4"
+  },
+  {
+   "id": "host_internal",
+   "type": "HOST",
+   "_comment": "Internal server names (.internal, .local, .corp, .lan, .intranet, .intra, .localdomain). Masked at any count; three or more is a finding.",
+   "pattern": "\\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+(?:internal|local|corp|lan|intranet|intra|localdomain)\\b",
+   "flags": "i"
+  }
+ ]
+}

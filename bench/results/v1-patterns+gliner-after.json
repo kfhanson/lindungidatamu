@@ -1,0 +1,114 @@
+{
+ "texts": 371,
+ "labelled": 812,
+ "protected": 0.9950738916256158,
+ "strict": 0.9766009852216748,
+ "over_masked_items": 1,
+ "over_masked_texts": 1,
+ "found": 809,
+ "ms_per_text": 110.39,
+ "per_type": {
+  "PERSON": {
+   "labelled": 245,
+   "protected": 241,
+   "strict": 230
+  },
+  "NIK": {
+   "labelled": 84,
+   "protected": 84,
+   "strict": 82
+  },
+  "BANK": {
+   "labelled": 63,
+   "protected": 63,
+   "strict": 62
+  },
+  "PHONE": {
+   "labelled": 77,
+   "protected": 77,
+   "strict": 77
+  },
+  "ADDRESS": {
+   "labelled": 49,
+   "protected": 49,
+   "strict": 49
+  },
+  "EMAIL": {
+   "labelled": 49,
+   "protected": 49,
+   "strict": 49
+  },
+  "BPJS": {
+   "labelled": 21,
+   "protected": 21,
+   "strict": 21
+  },
+  "CARD": {
+   "labelled": 21,
+   "protected": 21,
+   "strict": 21
+  },
+  "ORG": {
+   "labelled": 56,
+   "protected": 56,
+   "strict": 56
+  },
+  "PASSPORT": {
+   "labelled": 21,
+   "protected": 21,
+   "strict": 21
+  },
+  "NPWP": {
+   "labelled": 35,
+   "protected": 35,
+   "strict": 35
+  },
+  "SIM": {
+   "labelled": 14,
+   "protected": 14,
+   "strict": 14
+  },
+  "KK": {
+   "labelled": 21,
+   "protected": 21,
+   "strict": 20
+  },
+  "HOST": {
+   "labelled": 14,
+   "protected": 14,
+   "strict": 14
+  },
+  "IP": {
+   "labelled": 21,
+   "protected": 21,
+   "strict": 21
+  },
+  "SECRET": {
+   "labelled": 21,
+   "protected": 21,
+   "strict": 21
+  }
+ },
+ "misses": [
+  {
+   "id": "chat-01-4",
+   "type": "PERSON",
+   "value": "Mulyono"
+  },
+  {
+   "id": "chat-01-5",
+   "type": "PERSON",
+   "value": "Felicia"
+  },
+  {
+   "id": "chat-01-6",
+   "type": "PERSON",
+   "value": "Suparman"
+  },
+  {
+   "id": "form-03-3",
+   "type": "PERSON",
+   "value": "Paijo"
+  }
+ ]
+}

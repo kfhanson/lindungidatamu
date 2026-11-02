@@ -1,0 +1,109 @@
+{
+ "texts": 280,
+ "labelled": 640,
+ "protected": 0.9953125,
+ "strict": 0.9609375,
+ "over_masked_items": 15,
+ "over_masked_texts": 15,
+ "found": 652,
+ "ms_per_text": 108.13,
+ "per_type": {
+  "ADDRESS": {
+   "labelled": 72,
+   "protected": 72,
+   "strict": 72
+  },
+  "PERSON": {
+   "labelled": 216,
+   "protected": 213,
+   "strict": 194
+  },
+  "PHONE": {
+   "labelled": 72,
+   "protected": 72,
+   "strict": 72
+  },
+  "BANK": {
+   "labelled": 56,
+   "protected": 56,
+   "strict": 56
+  },
+  "ORG": {
+   "labelled": 40,
+   "protected": 40,
+   "strict": 40
+  },
+  "NIK": {
+   "labelled": 56,
+   "protected": 56,
+   "strict": 53
+  },
+  "BPJS": {
+   "labelled": 16,
+   "protected": 16,
+   "strict": 16
+  },
+  "EMAIL": {
+   "labelled": 32,
+   "protected": 32,
+   "strict": 32
+  },
+  "KK": {
+   "labelled": 16,
+   "protected": 16,
+   "strict": 16
+  },
+  "NPWP": {
+   "labelled": 16,
+   "protected": 16,
+   "strict": 16
+  },
+  "SIM": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  },
+  "PASSPORT": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  },
+  "CARD": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  },
+  "HOST": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  },
+  "IP": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  },
+  "SECRET": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  }
+ },
+ "misses": [
+  {
+   "id": "v2-online_shop-04-0",
+   "type": "PERSON",
+   "value": "Paijo"
+  },
+  {
+   "id": "v2-loan_app-01-4",
+   "type": "PERSON",
+   "value": "Mulyono"
+  },
+  {
+   "id": "v2-rental-02-0",
+   "type": "PERSON",
+   "value": "Bayu Utami"
+  }
+ ]
+}

@@ -1,0 +1,118 @@
+{
+ "NERGrit · GLiNER alone": {
+  "people": [
+   190,
+   213
+  ],
+  "orgs": [
+   105,
+   121
+  ],
+  "over": 91,
+  "over_examples": {
+   "PERSON: Ia": 4,
+   "PERSON: guru": 3,
+   "ORG: Sekolah Pembangunan": 3,
+   "PERSON: siswa": 2,
+   "ORG: SMK": 2,
+   "ORG: Twitter": 2,
+   "ORG: The Fame": 2,
+   "ORG: Guinness Book": 1,
+   "ORG: Pizza Hut": 1,
+   "ORG: K - Mart": 1,
+   "ORG: Civil Forum on The Presidency": 1,
+   "ADDRESS: gerejanya": 1,
+   "ORG: PT .": 1,
+   "PERSON: Miss Momoco Club": 1,
+   "ORG: 86 Momoco Party": 1
+  },
+  "ms_per_text": 240.5
+ },
+ "NERGrit · lindungidatamu": {
+  "people": [
+   190,
+   213
+  ],
+  "orgs": [
+   97,
+   121
+  ],
+  "over": 64,
+  "over_examples": {
+   "ORG: Sekolah Pembangunan": 3,
+   "ORG: SMK": 2,
+   "ORG: Twitter": 2,
+   "ORG: The Fame": 2,
+   "ORG: Guinness Book": 1,
+   "ORG: Pizza Hut": 1,
+   "ORG: K - Mart": 1,
+   "ORG: Civil Forum on The Presidency": 1,
+   "ORG: PT .": 1,
+   "PERSON: Miss Momoco Club": 1,
+   "ORG: 86 Momoco Party": 1,
+   "ORG: Total Football": 1,
+   "PERSON: Saadan Supa": 1,
+   "ORG: NBC": 1,
+   "ORG: Band ini": 1
+  },
+  "ms_per_text": 270.0
+ },
+ "NERP · GLiNER alone": {
+  "people": [
+   578,
+   644
+  ],
+  "orgs": [
+   0,
+   0
+  ],
+  "over": 625,
+  "over_examples": {
+   "ORG: kpk": 16,
+   "PERSON: saya": 13,
+   "ORG: pks": 11,
+   "ORG: partai demokrat": 9,
+   "PERSON: dia": 9,
+   "ORG: golkar": 9,
+   "PERSON: pks": 9,
+   "ORG: dpr": 8,
+   "PERSON: presiden": 8,
+   "ORG: koalisi": 8,
+   "PERSON: katanya": 7,
+   "ORG: pemerintah": 7,
+   "ORG: polisi": 7,
+   "PERSON: menurut dia": 6,
+   "ORG: partai": 6
+  },
+  "ms_per_text": 193.6
+ },
+ "NERP · lindungidatamu": {
+  "people": [
+   577,
+   644
+  ],
+  "orgs": [
+   0,
+   0
+  ],
+  "over": 321,
+  "over_examples": {
+   "ORG: falkirk": 5,
+   "ORG: kilmarnock": 5,
+   "PERSON: hamas": 3,
+   "ORG: unnes": 2,
+   "PERSON: para korban": 2,
+   "ORG: partai persatuan pembangunan ( ppp )": 2,
+   "ORG: bendera pks": 2,
+   "ORG: apbn": 2,
+   "ORG: aparat kepolisian": 2,
+   "ORG: kiostix": 2,
+   "ORG: universitas indonesia": 2,
+   "PERSON: umat": 2,
+   "PERSON: sipir tersebut": 1,
+   "ORG: densus 88 antiteror polri": 1,
+   "ORG: serambi digital": 1
+  },
+  "ms_per_text": 157.8
+ }
+}

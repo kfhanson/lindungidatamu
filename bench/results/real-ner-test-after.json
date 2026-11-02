@@ -1,0 +1,118 @@
+{
+ "NERGrit · GLiNER alone": {
+  "people": [
+   193,
+   207
+  ],
+  "orgs": [
+   106,
+   124
+  ],
+  "over": 102,
+  "over_examples": {
+   "PERSON: Dia": 6,
+   "PERSON: Ia": 5,
+   "ORG: KNIL": 4,
+   "ORG: sekolah": 2,
+   "ORG: SMP": 1,
+   "PERSON: Tanaka": 1,
+   "ORG: terminal bus antar kota": 1,
+   "ORG: Sp . PD dan dr .": 1,
+   "ORG: New Wave of American Heavy Metal": 1,
+   "PERSON: Bi": 1,
+   "ORG: sekolah sendir": 1,
+   "PERSON: Master Magician": 1,
+   "ORG: Depdiknas": 1,
+   "ORG: Pilot Project SLTP Kejuruan": 1,
+   "PERSON: Kapten dr .": 1
+  },
+  "ms_per_text": 124.7
+ },
+ "NERGrit · lindungidatamu": {
+  "people": [
+   193,
+   207
+  ],
+  "orgs": [
+   103,
+   124
+  ],
+  "over": 69,
+  "over_examples": {
+   "ORG: KNIL": 4,
+   "ORG: SMP": 1,
+   "PERSON: Tanaka": 1,
+   "ORG: Sp . PD dan dr .": 1,
+   "ORG: New Wave of American Heavy Metal": 1,
+   "PERSON: Master Magician": 1,
+   "ORG: Depdiknas": 1,
+   "ORG: Pilot Project SLTP Kejuruan": 1,
+   "PERSON: Kapten dr .": 1,
+   "ORG: The New York Times": 1,
+   "ORG: Sekolah Lanjutan Atas": 1,
+   "PERSON: M .": 1,
+   "PERSON: Ki Barak": 1,
+   "ORG: Puskesmas": 1,
+   "ORG: Puskesmas Kecamatan": 1
+  },
+  "ms_per_text": 190.1
+ },
+ "NERP · GLiNER alone": {
+  "people": [
+   562,
+   624
+  ],
+  "orgs": [
+   0,
+   0
+  ],
+  "over": 615,
+  "over_examples": {
+   "ORG: golkar": 17,
+   "ORG: partai": 14,
+   "PERSON: dia": 12,
+   "PERSON: presiden": 11,
+   "ORG: partai demokrat": 11,
+   "PERSON: saya": 10,
+   "ORG: partai golkar": 10,
+   "ORG: pks": 9,
+   "ORG: polisi": 8,
+   "PERSON: katanya": 8,
+   "PERSON: ia": 8,
+   "ORG: koalisi": 7,
+   "PERSON: anda": 6,
+   "ORG: kpk": 6,
+   "ORG: kabinet": 5
+  },
+  "ms_per_text": 205.9
+ },
+ "NERP · lindungidatamu": {
+  "people": [
+   561,
+   624
+  ],
+  "orgs": [
+   0,
+   0
+  ],
+  "over": 340,
+  "over_examples": {
+   "ORG: negara": 4,
+   "ORG: gereja": 4,
+   "ORG: uni eropa": 3,
+   "ORG: fifa": 3,
+   "ORG: poso": 3,
+   "PERSON: ma": 2,
+   "ORG: koalisi merah putih": 2,
+   "ORG: kontraktor": 2,
+   "ORG: cafe": 2,
+   "ORG: ifa": 2,
+   "ORG: angkot": 2,
+   "PERSON: bpk": 2,
+   "ORG: falkirk": 2,
+   "ORG: kabinet indonesia bersatu ii": 2,
+   "ORG: para peneliti": 2
+  },
+  "ms_per_text": 149.1
+ }
+}

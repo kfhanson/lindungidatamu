@@ -1,0 +1,35 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python }}
+      # The core and the Presidio add-on. The name model (GLiNER, ~1 GB) is left out: its tests use
+      # a stand-in finder, and the benchmark runs it locally.
+      - run: uv run --no-project --with . --with pytest --with presidio-analyzer pytest -q
+      # The synthetic benchmark with patterns only: fails if identifiers, numbers or addresses
+      # drop below 100% or false alarms appear.
+      - run: uv run --no-project --with . python bench/run.py --data v1 && uv run --no-project --with . python bench/run.py --data v2
+      - run: |
+          uv run --no-project --with . python - <<'PY'
+          import json, sys
+          for data in ("v1", "v2"):
+              r = json.load(open(f"bench/results/{data}-patterns.json"))
+              ids = {t: p for t, p in r["per_type"].items() if t not in ("PERSON", "ORG")}
+              missed = {t: p["labelled"] - p["protected"] for t, p in ids.items() if p["protected"] < p["labelled"]}
+              if missed or r["over_masked_items"] > 1:
+                  sys.exit(f"{data}: missed {missed}, over-masked {r['over_masked_items']}")
+          print("benchmark ok")
+          PY

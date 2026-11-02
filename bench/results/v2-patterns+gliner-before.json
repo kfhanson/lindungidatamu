@@ -1,0 +1,754 @@
+{
+ "texts": 280,
+ "labelled": 640,
+ "protected": 0.79375,
+ "strict": 0.746875,
+ "over_masked_items": 129,
+ "over_masked_texts": 97,
+ "found": 687,
+ "ms_per_text": 155.91,
+ "per_type": {
+  "ADDRESS": {
+   "labelled": 72,
+   "protected": 1,
+   "strict": 1
+  },
+  "PERSON": {
+   "labelled": 216,
+   "protected": 213,
+   "strict": 186
+  },
+  "PHONE": {
+   "labelled": 72,
+   "protected": 46,
+   "strict": 46
+  },
+  "BANK": {
+   "labelled": 56,
+   "protected": 24,
+   "strict": 24
+  },
+  "ORG": {
+   "labelled": 40,
+   "protected": 40,
+   "strict": 40
+  },
+  "NIK": {
+   "labelled": 56,
+   "protected": 56,
+   "strict": 53
+  },
+  "BPJS": {
+   "labelled": 16,
+   "protected": 16,
+   "strict": 16
+  },
+  "EMAIL": {
+   "labelled": 32,
+   "protected": 32,
+   "strict": 32
+  },
+  "KK": {
+   "labelled": 16,
+   "protected": 16,
+   "strict": 16
+  },
+  "NPWP": {
+   "labelled": 16,
+   "protected": 16,
+   "strict": 16
+  },
+  "SIM": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  },
+  "PASSPORT": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  },
+  "CARD": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  },
+  "HOST": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  },
+  "IP": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  },
+  "SECRET": {
+   "labelled": 8,
+   "protected": 8,
+   "strict": 8
+  }
+ },
+ "misses": [
+  {
+   "id": "v2-online_shop-00-0",
+   "type": "ADDRESS",
+   "value": "Gg. Damai No. 33, RT 01 RW 04, Semarang"
+  },
+  {
+   "id": "v2-online_shop-00-0",
+   "type": "PHONE",
+   "value": "0819.0431.39726"
+  },
+  {
+   "id": "v2-online_shop-00-1",
+   "type": "ADDRESS",
+   "value": "Komplek Graha Asri Blok A1 No. 14, Kel. Karang Anyar, Depok 85756"
+  },
+  {
+   "id": "v2-online_shop-00-2",
+   "type": "ADDRESS",
+   "value": "Komplek Bumi Asri Blok A9 No. 29, Kel. Cikini, Surabaya 83103"
+  },
+  {
+   "id": "v2-online_shop-00-3",
+   "type": "ADDRESS",
+   "value": "Dusun Wetan RT 001/RW 007, Desa Karangrejo, Kec. Menteng, Kab. Gresik"
+  },
+  {
+   "id": "v2-online_shop-00-4",
+   "type": "ADDRESS",
+   "value": "Komplek Taman Asri Blok C4 No. 21, Kelurahan Bojongsari, Bogor 27780"
+  },
+  {
+   "id": "v2-online_shop-00-4",
+   "type": "PHONE",
+   "value": "0878.9412.9389"
+  },
+  {
+   "id": "v2-online_shop-00-5",
+   "type": "ADDRESS",
+   "value": "Gg. Kenari II No. 27, RT 05 RW 08, Semarang"
+  },
+  {
+   "id": "v2-online_shop-00-5",
+   "type": "PHONE",
+   "value": "0883.6219.57841"
+  },
+  {
+   "id": "v2-online_shop-00-6",
+   "type": "ADDRESS",
+   "value": "Komplek Graha Lestari Blok D6 No. 27, Kel. Bojongsari, Denpasar 60038"
+  },
+  {
+   "id": "v2-online_shop-00-6",
+   "type": "PHONE",
+   "value": "+62 831 4950 585"
+  },
+  {
+   "id": "v2-online_shop-00-7",
+   "type": "ADDRESS",
+   "value": "Gg. Mawar No. 53, RT 03 RW 01, Bekasi"
+  },
+  {
+   "id": "v2-online_shop-03-0",
+   "type": "ADDRESS",
+   "value": "Dusun Wetan RT 005/RW 002, Desa Mekarsari, Kec. Sukasari, Kab. Garut"
+  },
+  {
+   "id": "v2-online_shop-03-1",
+   "type": "ADDRESS",
+   "value": "Dusun Tengah RT 008/RW 009, Desa Sidomulyo, Kec. Banjarsari, Kab. Klaten"
+  },
+  {
+   "id": "v2-online_shop-03-2",
+   "type": "ADDRESS",
+   "value": "Dusun Tengah RT 009/RW 003, Desa Wonosari, Kec. Menteng, Kab. Deli Serdang"
+  },
+  {
+   "id": "v2-online_shop-03-3",
+   "type": "ADDRESS",
+   "value": "Jalan Gajah Mada No. 134, Kecamatan Tebet, 39476"
+  },
+  {
+   "id": "v2-online_shop-03-4",
+   "type": "ADDRESS",
+   "value": "Dusun Wetan RT 004/RW 001, Desa Sumberagung, Kec. Cilandak, Kab. Banyumas"
+  },
+  {
+   "id": "v2-online_shop-03-5",
+   "type": "ADDRESS",
+   "value": "Dusun Krajan RT 006/RW 003, Desa Wonosari, Kec. Banjarsari, Kab. Banyumas"
+  },
+  {
+   "id": "v2-online_shop-03-6",
+   "type": "ADDRESS",
+   "value": "Komplek Graha Lestari Blok A9 No. 9, Kel. Bojongsari, Semarang 50638"
+  },
+  {
+   "id": "v2-online_shop-03-7",
+   "type": "ADDRESS",
+   "value": "Gg. Mawar II No. 31, RT 10 RW 01, Palembang"
+  },
+  {
+   "id": "v2-online_shop-04-0",
+   "type": "PERSON",
+   "value": "Paijo"
+  },
+  {
+   "id": "v2-clinic-01-0",
+   "type": "ADDRESS",
+   "value": "Komplek Graha Asri Blok C6 No. 2, Kelurahan Sukajadi, Makassar 65992"
+  },
+  {
+   "id": "v2-clinic-01-1",
+   "type": "ADDRESS",
+   "value": "Gg. Anggrek II No. 57, RT 04 RW 03, Semarang"
+  },
+  {
+   "id": "v2-clinic-01-2",
+   "type": "ADDRESS",
+   "value": "Gg. Anggrek III No. 37, RT 06 RW 08, Depok"
+  },
+  {
+   "id": "v2-clinic-01-3",
+   "type": "ADDRESS",
+   "value": "Komplek Bumi Indah Blok F8 No. 24, Kel. Karang Anyar, Bogor 97857"
+  },
+  {
+   "id": "v2-clinic-01-4",
+   "type": "ADDRESS",
+   "value": "Dusun Kidul RT 003/RW 003, Desa Karangrejo, Kec. Tebet, Kab. Sleman"
+  },
+  {
+   "id": "v2-clinic-01-5",
+   "type": "ADDRESS",
+   "value": "Jl. Gajah Mada No. 28, RT 013/RW 007, Kel. Karang Anyar, Kecamatan Sukasari, Denpasar"
+  },
+  {
+   "id": "v2-clinic-01-6",
+   "type": "ADDRESS",
+   "value": "Dusun Tengah RT 005/RW 001, Desa Mekarsari, Kec. Banjarsari, Kab. Garut"
+  },
+  {
+   "id": "v2-clinic-01-7",
+   "type": "ADDRESS",
+   "value": "Dusun Kidul RT 006/RW 009, Desa Karangrejo, Kec. Tebet, Kab. Sidoarjo"
+  },
+  {
+   "id": "v2-clinic-02-1",
+   "type": "PHONE",
+   "value": "0886.4347.111"
+  },
+  {
+   "id": "v2-clinic-02-3",
+   "type": "PHONE",
+   "value": "+62 886 1657 28663"
+  },
+  {
+   "id": "v2-clinic-02-4",
+   "type": "PHONE",
+   "value": "+62 896 3060 21165"
+  },
+  {
+   "id": "v2-clinic-02-7",
+   "type": "PHONE",
+   "value": "+62 824 1249 19631"
+  },
+  {
+   "id": "v2-clinic-03-2",
+   "type": "PHONE",
+   "value": "0810.8505.0001"
+  },
+  {
+   "id": "v2-clinic-03-3",
+   "type": "PHONE",
+   "value": "0812.6675.88884"
+  },
+  {
+   "id": "v2-clinic-03-5",
+   "type": "PHONE",
+   "value": "0899.4674.455"
+  },
+  {
+   "id": "v2-clinic-03-6",
+   "type": "PHONE",
+   "value": "0858.2624.2351"
+  },
+  {
+   "id": "v2-school-00-0",
+   "type": "ADDRESS",
+   "value": "Dusun Lor RT 003/RW 006, Desa Mekarsari, Kec. Coblong, Kab. Bantul"
+  },
+  {
+   "id": "v2-school-00-1",
+   "type": "ADDRESS",
+   "value": "Komplek Graha Indah Blok F8 No. 27, Kel. Cikini, Tangerang 45308"
+  },
+  {
+   "id": "v2-school-00-2",
+   "type": "ADDRESS",
+   "value": "Komplek Taman Lestari Blok C3 No. 3, Kelurahan Lowokwaru, Bandung 84221"
+  },
+  {
+   "id": "v2-school-00-3",
+   "type": "ADDRESS",
+   "value": "Gg. Kenari No. 50, RT 06 RW 01, Bogor"
+  },
+  {
+   "id": "v2-school-00-4",
+   "type": "ADDRESS",
+   "value": "Komplek Bumi Lestari Blok A11 No. 23, Kelurahan Menteng, Jakarta Selatan 16756"
+  },
+  {
+   "id": "v2-school-00-5",
+   "type": "ADDRESS",
+   "value": "Gg. Kenari II No. 35, RT 04 RW 07, Yogyakarta"
+  },
+  {
+   "id": "v2-school-00-6",
+   "type": "ADDRESS",
+   "value": "Gg. Mawar III No. 43, RT 06 RW 03, Surabaya"
+  },
+  {
+   "id": "v2-school-00-7",
+   "type": "ADDRESS",
+   "value": "Jl. Diponegoro No. 167, RT 002/RW 007, Kel. Lowokwaru, Makassar"
+  },
+  {
+   "id": "v2-school-02-0",
+   "type": "BANK",
+   "value": "1498 0328 37"
+  },
+  {
+   "id": "v2-school-02-1",
+   "type": "BANK",
+   "value": "379-020-759823"
+  },
+  {
+   "id": "v2-school-02-2",
+   "type": "BANK",
+   "value": "849891736187"
+  },
+  {
+   "id": "v2-school-02-3",
+   "type": "BANK",
+   "value": "4137 2975 0866"
+  },
+  {
+   "id": "v2-school-02-4",
+   "type": "BANK",
+   "value": "451-865-7269"
+  },
+  {
+   "id": "v2-school-02-5",
+   "type": "BANK",
+   "value": "3194253408"
+  },
+  {
+   "id": "v2-school-02-6",
+   "type": "BANK",
+   "value": "7003 2926 93"
+  },
+  {
+   "id": "v2-school-02-7",
+   "type": "BANK",
+   "value": "3556 2388 4570002"
+  },
+  {
+   "id": "v2-loan_app-00-0",
+   "type": "BANK",
+   "value": "737358667168"
+  },
+  {
+   "id": "v2-loan_app-00-1",
+   "type": "BANK",
+   "value": "8089533373"
+  },
+  {
+   "id": "v2-loan_app-00-2",
+   "type": "BANK",
+   "value": "7041282403"
+  },
+  {
+   "id": "v2-loan_app-00-3",
+   "type": "BANK",
+   "value": "9923135856"
+  },
+  {
+   "id": "v2-loan_app-00-4",
+   "type": "BANK",
+   "value": "4976816053"
+  },
+  {
+   "id": "v2-loan_app-00-5",
+   "type": "BANK",
+   "value": "7946261050"
+  },
+  {
+   "id": "v2-loan_app-00-6",
+   "type": "BANK",
+   "value": "9053 8461 91"
+  },
+  {
+   "id": "v2-loan_app-00-7",
+   "type": "BANK",
+   "value": "0757 3058 3561674"
+  },
+  {
+   "id": "v2-loan_app-01-2",
+   "type": "PHONE",
+   "value": "+62 887 4211 406"
+  },
+  {
+   "id": "v2-loan_app-01-4",
+   "type": "PERSON",
+   "value": "Mulyono"
+  },
+  {
+   "id": "v2-loan_app-01-6",
+   "type": "PHONE",
+   "value": "0835.9372.786"
+  },
+  {
+   "id": "v2-rt_letter-00-0",
+   "type": "ADDRESS",
+   "value": "Dusun Kidul RT 009/RW 009, Desa Sumberagung, Kec. Genteng, Kab. Banyumas"
+  },
+  {
+   "id": "v2-rt_letter-00-1",
+   "type": "ADDRESS",
+   "value": "Perumahan Griya Indah Blok D13 No. 34, Surabaya"
+  },
+  {
+   "id": "v2-rt_letter-00-2",
+   "type": "ADDRESS",
+   "value": "Gg. Kenari No. 38, RT 03 RW 01, Makassar"
+  },
+  {
+   "id": "v2-rt_letter-00-3",
+   "type": "ADDRESS",
+   "value": "Dusun Lor RT 001/RW 005, Desa Sumberagung, Kec. Genteng, Kab. Gresik"
+  },
+  {
+   "id": "v2-rt_letter-00-4",
+   "type": "ADDRESS",
+   "value": "Komplek Bumi Asri Blok D9 No. 5, Kel. Bojongsari, Makassar 31319"
+  },
+  {
+   "id": "v2-rt_letter-00-5",
+   "type": "ADDRESS",
+   "value": "Dusun Lor RT 006/RW 008, Desa Sumberagung, Kec. Coblong, Kab. Bogor"
+  },
+  {
+   "id": "v2-rt_letter-00-6",
+   "type": "ADDRESS",
+   "value": "Komplek Graha Asri Blok A9 No. 4, Kelurahan Tegalsari, Denpasar 67631"
+  },
+  {
+   "id": "v2-rt_letter-00-7",
+   "type": "ADDRESS",
+   "value": "Komplek Graha Indah Blok E5 No. 27, Kel. Lowokwaru, Tangerang 42607"
+  },
+  {
+   "id": "v2-rt_letter-01-0",
+   "type": "ADDRESS",
+   "value": "Gg. Anggrek II No. 42, RT 12 RW 05, Semarang"
+  },
+  {
+   "id": "v2-rt_letter-01-1",
+   "type": "ADDRESS",
+   "value": "Gg. Damai II No. 47, RT 05 RW 08, Medan"
+  },
+  {
+   "id": "v2-rt_letter-01-2",
+   "type": "ADDRESS",
+   "value": "Dusun Krajan RT 006/RW 009, Desa Cibodas, Kec. Coblong, Kab. Sleman"
+  },
+  {
+   "id": "v2-rt_letter-01-3",
+   "type": "ADDRESS",
+   "value": "Gg. Melati No. 9, RT 03 RW 06, Semarang"
+  },
+  {
+   "id": "v2-rt_letter-01-4",
+   "type": "ADDRESS",
+   "value": "Gg. Melati III No. 42, RT 06 RW 02, Semarang"
+  },
+  {
+   "id": "v2-rt_letter-01-5",
+   "type": "ADDRESS",
+   "value": "Gg. Mawar II No. 43, RT 10 RW 02, Bekasi"
+  },
+  {
+   "id": "v2-rt_letter-01-6",
+   "type": "ADDRESS",
+   "value": "Gg. Kenari III No. 49, RT 11 RW 03, Bandung"
+  },
+  {
+   "id": "v2-rt_letter-01-7",
+   "type": "ADDRESS",
+   "value": "Dusun Wetan RT 006/RW 006, Desa Tanjungsari, Kec. Lowokwaru, Kab. Gianyar"
+  },
+  {
+   "id": "v2-rental-00-0",
+   "type": "PHONE",
+   "value": "+62 836 5577 000"
+  },
+  {
+   "id": "v2-rental-00-2",
+   "type": "PHONE",
+   "value": "+62 877 1546 342"
+  },
+  {
+   "id": "v2-rental-00-4",
+   "type": "PHONE",
+   "value": "0854.3277.31218"
+  },
+  {
+   "id": "v2-rental-00-6",
+   "type": "PHONE",
+   "value": "+62 829 1134 671"
+  },
+  {
+   "id": "v2-rental-00-7",
+   "type": "PHONE",
+   "value": "+62 899 7021 963"
+  },
+  {
+   "id": "v2-rental-01-0",
+   "type": "ADDRESS",
+   "value": "Gg. Kenari No. 1, RT 07 RW 04, Bandung"
+  },
+  {
+   "id": "v2-rental-01-0",
+   "type": "BANK",
+   "value": "337610601770416"
+  },
+  {
+   "id": "v2-rental-01-1",
+   "type": "ADDRESS",
+   "value": "Jl. Sudirman No. 42, RT 013/RW 009, Kelurahan Karang Anyar, Kecamatan Menteng, Bandung, 57760"
+  },
+  {
+   "id": "v2-rental-01-1",
+   "type": "BANK",
+   "value": "3166356492746"
+  },
+  {
+   "id": "v2-rental-01-2",
+   "type": "ADDRESS",
+   "value": "Gg. Mawar III No. 19, RT 10 RW 09, Denpasar"
+  },
+  {
+   "id": "v2-rental-01-2",
+   "type": "BANK",
+   "value": "652-827-642223784"
+  },
+  {
+   "id": "v2-rental-01-3",
+   "type": "ADDRESS",
+   "value": "Gg. Melati II No. 37, RT 10 RW 03, Bekasi"
+  },
+  {
+   "id": "v2-rental-01-3",
+   "type": "BANK",
+   "value": "822-122-686348625"
+  },
+  {
+   "id": "v2-rental-01-4",
+   "type": "ADDRESS",
+   "value": "Dusun Wetan RT 004/RW 001, Desa Sidomulyo, Kec. Lowokwaru, Kab. Deli Serdang"
+  },
+  {
+   "id": "v2-rental-01-4",
+   "type": "BANK",
+   "value": "3158839274"
+  },
+  {
+   "id": "v2-rental-01-5",
+   "type": "ADDRESS",
+   "value": "Gg. Melati II No. 7, RT 03 RW 09, Depok"
+  },
+  {
+   "id": "v2-rental-01-5",
+   "type": "BANK",
+   "value": "7286 9560 9427"
+  },
+  {
+   "id": "v2-rental-01-6",
+   "type": "ADDRESS",
+   "value": "Dusun Tengah RT 008/RW 001, Desa Wonosari, Kec. Genteng, Kab. Sidoarjo"
+  },
+  {
+   "id": "v2-rental-01-6",
+   "type": "BANK",
+   "value": "0707808594976"
+  },
+  {
+   "id": "v2-rental-01-7",
+   "type": "ADDRESS",
+   "value": "Dusun Kidul RT 004/RW 007, Desa Wonosari, Kec. Sukasari, Kab. Gianyar"
+  },
+  {
+   "id": "v2-rental-01-7",
+   "type": "BANK",
+   "value": "043153393207160"
+  },
+  {
+   "id": "v2-rental-02-0",
+   "type": "PERSON",
+   "value": "Bayu Utami"
+  },
+  {
+   "id": "v2-insurance-00-0",
+   "type": "BANK",
+   "value": "4398359594"
+  },
+  {
+   "id": "v2-insurance-00-1",
+   "type": "BANK",
+   "value": "0619 1467 1115"
+  },
+  {
+   "id": "v2-insurance-00-2",
+   "type": "BANK",
+   "value": "7707 2111 45"
+  },
+  {
+   "id": "v2-insurance-00-3",
+   "type": "BANK",
+   "value": "034-085-521436"
+  },
+  {
+   "id": "v2-insurance-00-4",
+   "type": "BANK",
+   "value": "4990591655121"
+  },
+  {
+   "id": "v2-insurance-00-5",
+   "type": "BANK",
+   "value": "1200 0008 56"
+  },
+  {
+   "id": "v2-insurance-00-6",
+   "type": "BANK",
+   "value": "3657541540"
+  },
+  {
+   "id": "v2-insurance-00-7",
+   "type": "BANK",
+   "value": "196027066632"
+  },
+  {
+   "id": "v2-insurance-01-0",
+   "type": "ADDRESS",
+   "value": "Gg. Melati III No. 23, RT 11 RW 03, Tangerang"
+  },
+  {
+   "id": "v2-insurance-01-1",
+   "type": "ADDRESS",
+   "value": "Jl Raya Bogor No. 247, RT 006/RW 007, Kelurahan Karang Anyar, 44306"
+  },
+  {
+   "id": "v2-insurance-01-2",
+   "type": "ADDRESS",
+   "value": "Perumahan Griya Asri Blok C13 No. 36, Tangerang"
+  },
+  {
+   "id": "v2-insurance-01-3",
+   "type": "ADDRESS",
+   "value": "Dusun Kidul RT 008/RW 003, Desa Sumberagung, Kec. Banjarsari, Kab. Bantul"
+  },
+  {
+   "id": "v2-insurance-01-4",
+   "type": "ADDRESS",
+   "value": "Komplek Bumi Lestari Blok C9 No. 1, Kel. Bojongsari, Tangerang 18613"
+  },
+  {
+   "id": "v2-insurance-01-5",
+   "type": "ADDRESS",
+   "value": "Gg. Mawar III No. 22, RT 05 RW 02, Tangerang"
+  },
+  {
+   "id": "v2-insurance-01-6",
+   "type": "ADDRESS",
+   "value": "Komplek Taman Lestari Blok A12 No. 10, Kel. Sukajadi, Bandung 34124"
+  },
+  {
+   "id": "v2-social_dm-00-1",
+   "type": "PHONE",
+   "value": "0856.3602.1203"
+  },
+  {
+   "id": "v2-social_dm-00-6",
+   "type": "PHONE",
+   "value": "0887.1521.17741"
+  },
+  {
+   "id": "v2-social_dm-01-0",
+   "type": "ADDRESS",
+   "value": "Gg. Damai No. 15, RT 05 RW 03, Bekasi"
+  },
+  {
+   "id": "v2-social_dm-01-1",
+   "type": "ADDRESS",
+   "value": "Dusun Tengah RT 006/RW 005, Desa Mekarsari, Kec. Genteng, Kab. Deli Serdang"
+  },
+  {
+   "id": "v2-social_dm-01-2",
+   "type": "ADDRESS",
+   "value": "Dusun Wetan RT 009/RW 009, Desa Mekarsari, Kec. Menteng, Kab. Bantul"
+  },
+  {
+   "id": "v2-social_dm-01-3",
+   "type": "ADDRESS",
+   "value": "Jl. Raya Bogor No. 43, RT 010/RW 007, Kel. Bojongsari, Kec. Sukasari, Depok"
+  },
+  {
+   "id": "v2-social_dm-01-4",
+   "type": "ADDRESS",
+   "value": "Gg. Damai III No. 53, RT 10 RW 08, Makassar"
+  },
+  {
+   "id": "v2-social_dm-01-5",
+   "type": "ADDRESS",
+   "value": "Dusun Krajan RT 002/RW 009, Desa Wonosari, Kec. Sukasari, Kab. Deli Serdang"
+  },
+  {
+   "id": "v2-social_dm-01-6",
+   "type": "ADDRESS",
+   "value": "Gg. Damai II No. 56, RT 02 RW 03, Surabaya"
+  },
+  {
+   "id": "v2-social_dm-01-7",
+   "type": "ADDRESS",
+   "value": "Gg. Anggrek No. 2, RT 01 RW 02, Surabaya"
+  },
+  {
+   "id": "v2-social_dm-02-0",
+   "type": "PHONE",
+   "value": "0897.2313.77399"
+  },
+  {
+   "id": "v2-social_dm-02-2",
+   "type": "PHONE",
+   "value": "+62 850 7399 862"
+  },
+  {
+   "id": "v2-social_dm-02-7",
+   "type": "PHONE",
+   "value": "0859.8969.704"
+  },
+  {
+   "id": "v2-business_email-01-1",
+   "type": "PHONE",
+   "value": "0896.5181.8876"
+  },
+  {
+   "id": "v2-business_email-01-7",
+   "type": "PHONE",
+   "value": "+62 837 5385 613"
+  }
+ ]
+}
