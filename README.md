@@ -38,7 +38,13 @@ chats, forms and documents, patterns protect **100%** of identifiers, numbers an
 sets are written by us and partly tuned on, so read them as "it handles these formats". A real-data
 number for identifiers needs consented data and isn't there yet.
 
+Since 2026-11-03 health facilities stay visible (see below), so on the synthetic sets with the name
+model protected is 99.1% (v1 and v2): the difference is "Klinik Sehat Sentosa", which those sets
+label as an organisation to mask. Patterns alone and the real-text name numbers are unchanged.
+
 ## Install
+
+Python 3.10 or newer (macOS ships 3.9: use `uv` or Homebrew Python).
 
 ```bash
 pip install lindungidatamu                 # patterns and masking, no dependencies
@@ -59,9 +65,20 @@ pip install "lindungidatamu[presidio]"     # + Indonesian recognisers for Micros
 | `ADDRESS` | `Jl. Kenanga No. 7 RT 03/RW 05` | Indonesian street address cues |
 | `IP`, `HOST` | `10.0.0.5`, `db01.corp` | private addresses, internal server names |
 | `SECRET` | API keys, private keys, passwords | known key formats and `password = …` |
+| `ORG` | `KAP Budi Santoso, Hamid & Rekan` | a firm named after its partners, whole (no model needed) |
 | `PERSON`, `ORG`, `ADDRESS` | `Budi Santoso` | with a name model (`lindungidatamu[names]`) |
 
 Every pattern has test cases, including near misses it must not match, in `tests/fixtures.json`.
+
+With the name model, a few things are deliberately **not** masked as people:
+- **Health facilities and their namesakes:** `RS Hermina Bekasi`, `RSUD Dr. Soetomo`, `Siloam Hospitals`.
+  Indonesian hospitals are often named after people. A doctor *next to* a hospital (`RS Hermina, dr. Budi`)
+  and a doctor's own practice (`Klinik dr. Budi`) are still masked. Turn the facility rule off with `public=False`.
+- **Diseases named after people:** `G20-PARKINSON`, `Crohn disease`, `sindrom Down`.
+
+All-caps text (`BAMBANG SUTRISNO`, common in Indonesian records) goes to the name model in title case, which
+it reads far better. The model loads from your local cache without contacting the internet once it is
+downloaded, and its version is pinned.
 
 ## More
 
@@ -80,6 +97,14 @@ from lindungidatamu.names import GlinerNames
 finder = GlinerNames()
 ld.mask("Kontrak Budi Santoso dengan PT Maju Jaya", names=finder, keep=["Bank Indonesia"])
 
+# A dataset: keep the vault for later, in a file only you can read (mode 0600)
+vault = ld.Vault(merge_partial=False)   # in a table, "Budi" and "Budi Santoso" may be two people
+...                                     # mask every value with vault=vault
+vault.save("claims.vault.json")
+ld.Vault.load("claims.vault.json").restore(report, strict=True)
+# strict: only exact placeholders like [PERSON_12]. Without it, rewritten forms ("Person 12")
+# are restored too: right for a chat answer, risky in a report ("member 812" is just words).
+
 # Just find, without masking
 ld.find("NIK 3174091203880004")   # [Entity(type='NIK', start=4, end=20, ...)]
 ```
@@ -93,6 +118,24 @@ from lindungidatamu.presidio import add_to
 analyzer = add_to(AnalyzerEngine())
 analyzer.analyze("NIK 3174091203880004", language="en")    # ID_NIK
 ```
+
+## Free and Pro
+
+This library is free and stays complete on its own: everything needed to find, mask and restore
+personal data safely is here, and nothing that keeps your data safe will move behind a paywall.
+lindungidatamu Pro adds judgement, compliance evidence and convenience on top.
+
+| | Free (this repo, Apache-2.0) | Pro |
+|---|---|---|
+| Finding | Patterns and validators, GLiNER name model (runs locally) | Fine-tuned Indonesian name model (all-caps text, institutions named after people) |
+| Masking | `mask` / `restore`, Vault, your own terms and formats | |
+| Tables and files *(planned)* | Per-column decisions (identifier, safe, text), whole-column tokens, residual check, policy file, command-line tool | Decision model per column: UU PDP specific data (health, children, finance, criminal records, biometric, genetic) |
+| Messages | | Decision model per message: UU PDP specific data, still identifiable after masking, confidential business information |
+| Reports | Masking report: counts per column and type, versions | DPIA-ready report mapped to UU PDP articles, over-masking score |
+| Integrations *(planned)* | Python helpers, Presidio add-on, self-hosted OpenAI-compatible proxy | Proxy policy, audit log, admin view and SSO for teams; hosted API |
+
+The free version uses no decision model: it finds identifiers and names, not facts. A diagnosis
+next to a masked name stays visible; telling you that it is UU PDP health data is Pro's job.
 
 ## License
 

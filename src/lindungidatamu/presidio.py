@@ -40,7 +40,7 @@ def recognizers(languages=("en", "id")) -> list:
         def analyze(self, text, entities, nlp_artifacts=None):
             wanted = set(entities or [])
             return [RecognizerResult(entity_name(e.type), e.start, e.end, 0.9)
-                    for e in pattern_entities(text) if not wanted or entity_name(e.type) in wanted]
+                    for e in pattern_entities(text, set(TYPES)) if not wanted or entity_name(e.type) in wanted]
 
     return [IndonesianRecognizer(lang) for lang in languages]
 

@@ -436,6 +436,19 @@
      "012345678901000"
     ]
    ]
+  },
+  {
+   "text": "Laporan audit oleh KAP Budi Santoso, Hamid & Rekan selesai",
+   "expect": [
+    [
+     "ORG",
+     "KAP Budi Santoso, Hamid & Rekan"
+    ]
+   ]
+  },
+  {
+   "text": "Saya & rekan kerja datang besok",
+   "expect": []
   }
  ]
 }

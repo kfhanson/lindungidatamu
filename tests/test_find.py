@@ -87,3 +87,42 @@ def test_ordinary_phrases_and_dressed_up_public_bodies_are_not_organisations():
     text = "min akun aku dibajak, bayar ke VA BTN, sy pesan lewat PT Maju Jaya"
     names = Names(("ORG", "akun aku dibajak"), ("ORG", "VA BTN"), ("PERSON", "sy"), ("ORG", "PT Maju Jaya"))
     assert found(text, names=names) == [("ORG", "PT Maju Jaya")]
+
+
+def test_a_person_inside_a_facility_name_is_a_namesake():
+    names = Names(("PERSON", "Hermina"), ("PERSON", "SOETOMO"), ("PERSON", "BUDI"), ("PERSON", "Sardjito"))
+    assert found("RS Hermina Bekasi", names=names) == []
+    assert found("RSUD DR. SOETOMO SURABAYA", names=names) == []
+    assert found("SILOAM HOSPITALS MEDAN (BUDI)", names=names) == []
+    assert found("Hermina Hospital", names=names) == []
+    assert found("dirujuk ke rumah sakit Sardjito", names=names) == []
+
+
+def test_a_person_next_to_a_facility_stays_a_person():
+    assert found("RS Hermina, dr. Budi", names=Names(("PERSON", "Budi"))) == [("PERSON", "Budi")]
+    assert found("Budi dirawat di RS Hermina", names=Names(("PERSON", "Budi"))) == [("PERSON", "Budi")]
+    assert found("RS HERMINA OLEH DR. BUDI", names=Names(("PERSON", "BUDI"))) == [("PERSON", "BUDI")]
+    assert found("Klinik dr. Budi", names=Names(("PERSON", "Budi"))) == [("PERSON", "Budi")]   # the doctor's own practice
+
+
+def test_health_facilities_are_public_organisations():
+    names = Names(("ORG", "RS Hermina Bekasi"), ("ORG", "Siloam Hospitals"), ("ORG", "PT Sinar Medika"))
+    assert found("RS Hermina Bekasi, Siloam Hospitals, PT Sinar Medika", names=names) == [("ORG", "PT Sinar Medika")]
+    assert ("ORG", "RS Hermina Bekasi") in found("RS Hermina Bekasi", names=names, public=False)
+
+
+def test_diseases_named_after_people_are_not_people():
+    names = Names(("PERSON", "PARKINSON"), ("PERSON", "Crohn"), ("PERSON", "Down"), ("PERSON", "Budi"))
+    assert found("G20-PARKINSON", names=names) == []
+    assert found("K50 Crohn disease", names=names) == []
+    assert found("anak dengan sindrom Down", names=names) == []
+    assert found("penyakit Budi kambuh", names=names) == [("PERSON", "Budi")]    # Budi's illness
+    assert found("Bed A12 - Budi", names=names) == [("PERSON", "Budi")]
+
+
+def test_the_name_model_sees_upper_case_lines_in_title_case():
+    from lindungidatamu.names import model_view
+    text = "nama: BAMBANG SUTRISNO, SE\nkode: J18.9 pneumonia"
+    seen = model_view(text)
+    assert seen == "nama: Bambang Sutrisno, Se\nkode: J18.9 pneumonia" and len(seen) == len(text)
+    assert model_view("Budi Santoso, PT ABC") == "Budi Santoso, PT ABC"

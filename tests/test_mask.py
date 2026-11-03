@@ -37,3 +37,50 @@ def test_one_vault_per_conversation():
 def test_nothing_to_mask():
     m = ld.mask("Tolong buatkan ringkasan rapat kemarin")
     assert m.text == "Tolong buatkan ringkasan rapat kemarin" and m.entities == []
+
+
+def test_placeholders_beyond_999_restore():
+    v = ld.Vault()
+    for i in range(1, 1201):
+        v.placeholder("MEMBER", f"M{i:06d}")
+    assert v.restore("[MEMBER_12] and [MEMBER_1200]") == "M000012 and M001200"
+    assert ld.find("member [MEMBER_1200]") == []
+
+
+def test_strict_restore_only_takes_exact_placeholders():
+    m = ld.mask(TEXT, names=Names())
+    assert m.restore("Person 1 wrote to [PERSON_1]", strict=True) == "Person 1 wrote to Budi Santoso"
+
+
+def test_a_table_vault_keeps_two_budis_apart():
+    v = ld.Vault(merge_partial=False)
+    assert v.placeholder("PERSON", "Budi Santoso") == "[PERSON_1]"
+    assert v.placeholder("PERSON", "Budi") == "[PERSON_2]"
+    assert v.placeholder("PERSON", "budi  santoso") == "[PERSON_1]"
+
+
+def test_the_earliest_partial_match_wins():
+    v = ld.Vault()
+    v.placeholder("PERSON", "Budi Santoso")
+    v.placeholder("PERSON", "Budi Hartono")
+    assert v.placeholder("PERSON", "Budi") == "[PERSON_1]"
+
+
+def test_save_and_load(tmp_path):
+    import stat
+    v = ld.Vault(merge_partial=False)
+    v.placeholder("NIK", "3174091203880004")
+    v.placeholder("PERSON", "Budi")
+    path = tmp_path / "vault.json"
+    v.save(path)
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    w = ld.Vault.load(path)
+    assert w.merge_partial is False and w.restore("[NIK_1] [PERSON_1]") == "3174091203880004 Budi"
+    assert w.placeholder("PERSON", "Siti") == "[PERSON_2]"            # numbering carries on
+
+
+def test_items_added_from_outside_are_seen():
+    v = ld.Vault()
+    v.items.append(ld.Item("[NIK_7]", "NIK", "3174091203880004"))
+    assert v.placeholder("NIK", "3174 0912 0388 0004") == "[NIK_7]"
+    assert v.placeholder("NIK", "3174091203880005") == "[NIK_8]"

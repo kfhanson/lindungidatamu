@@ -1,6 +1,6 @@
 {
  "_comment": "Indonesian personal data and secrets, as regular expressions with checks. `type` is what a match is masked as ([NIK_1]); `group` is the part that is the value (a label before it isn't); `validator` names a check in validators.py; `allow` lists values that never match (public test card numbers). Order matters where two patterns can match the same text: the earlier one wins. tests/fixtures.json is the behaviour, case by case.",
- "version": "2026-10-31.1",
+ "version": "2026-11-03.1",
  "patterns": [
   {
    "id": "private_key",
@@ -157,6 +157,12 @@
    "type": "ADDRESS",
    "_comment": "A village or kampung address that starts with its name and RT/RW (Dusun Krajan RT 002/RW 003); the rest (Desa, Kec., Kab.) is added by the address extension in detect.py.",
    "pattern": "\\b(?:Dusun|Dsn\\.?|Kampung|Kp\\.)\\s+[A-Z][\\w'-]*(?:\\s+[A-Z][\\w'-]*)?(?=\\s*,?\\s*RT\\b)"
+  },
+  {
+   "id": "firm_partners",
+   "type": "ORG",
+   "pattern": "\\b[A-Z][A-Za-z'.-]+(?:\\s+[A-Z][A-Za-z'.-]+){0,2}(?:\\s*,\\s*[A-Z][A-Za-z'.-]+(?:\\s+[A-Z][A-Za-z'.-]+){0,2})*\\s*(?:&|dan|DAN|and|AND)\\s*(?:Rekan|REKAN|Partners?|PARTNERS?|Associates|ASSOCIATES)\\b",
+   "_comment": "A firm named after its partners (KAP Budi Santoso, Hamid & Rekan): the whole name, so no partner is left visible. Capitalised names and a capitalised 'Rekan' only: 'saya & rekan kerja' is not a firm."
   },
   {
    "id": "email",

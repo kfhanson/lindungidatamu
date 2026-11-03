@@ -71,6 +71,12 @@ def _public() -> dict:
     return {"organisations": tuple(doc["organisations"]),
             "not_names": frozenset(w.lower() for w in doc["not_names"]),
             "public_prefixes": frozenset(doc.get("public_prefixes", [])),
+            "facilities": frozenset(w.lower() for w in doc["facilities"]),
+            "facility_suffixes": frozenset(w.lower() for w in doc["facility_suffixes"]),
+            "phrase_breaks": frozenset(w.lower() for w in doc["phrase_breaks"]),
+            "title_words": frozenset(t.rstrip(".").lower() for t in doc["titles"]),
+            "disease_before": frozenset(w.lower() for w in doc["disease_before"]),
+            "disease_after": frozenset(w.lower() for w in doc["disease_after"]),
             "titles": re.compile(r"^(?:(?:" + "|".join(re.escape(t) for t in titles) + r")\s+)+", re.IGNORECASE)}
 
 
@@ -151,14 +157,81 @@ def _not_an_organisation(name: str, public: tuple[str, ...]) -> bool:
     return rest != name and not any(len(w) >= 4 and w[:1].isupper() for w in rest.split())
 
 
+_TOKEN = re.compile(r"[^\W_][\w'’]*\.?|[^\w\s]")
+# Words that make an organisation a health facility wherever they stand ("Siloam Hospitals Medan").
+# Not "Medika" or "Farma": "PT Sinar Medika" may be a client whose name must stay masked.
+_FACILITY_ANYWHERE = {"hospital", "hospitals", "clinic", "klinik", "puskesmas"}
+# An ICD-10 code written onto the name: "G20-PARKINSON". Not "A12 - Budi" (a bed, a room).
+_ICD_BEFORE = re.compile(r"\b[A-Z]\d{2}(?:\.\d{1,3})?[-–:]$")
+
+
+def _first_word(s: str) -> str:
+    m = _TOKEN.search(s)
+    return m.group(0).rstrip(".").lower() if m else ""
+
+
+def _namesake(e: Entity, text: str) -> bool:
+    """A person's name that is part of an institution's name: RS Hermina, RSUD Dr. Soetomo, Siloam
+    Hospitals Medan (Budi), Hermina Hospital. Indonesian hospitals are often named after people; the
+    name model reads them as patients. Looks back along the same name phrase (capitalised words,
+    titles, brackets) for a facility word; a lowercase word, a comma or a linking word ("oleh",
+    "a.n.") ends the phrase, so "RS Hermina, dr. Budi" keeps Budi a person. A doctor after a smaller
+    facility ("Klinik dr. Budi") stays a person: that is usually the doctor's own practice."""
+    pub = _public()
+    if _first_word(e.text) in pub["facilities"]:
+        return True
+    after = text[e.end:e.end + 30]
+    m = re.match(r"\s*([^\W\d_]+)", after)
+    if m and m.group(1).lower() in pub["facility_suffixes"]:
+        return True
+    line = text[text.rfind("\n", 0, e.start) + 1:e.start]
+    line = re.sub(r"(?i)rumah\s+sakit", "RS", line)
+    titled = False
+    for tok in reversed(_TOKEN.findall(line)[-8:]):
+        w = tok.rstrip(".").lower()
+        if w in pub["facilities"]:
+            # "RSUD Dr. Soetomo" is a namesake; "Klinik dr. Budi" is usually Dr Budi's own practice
+            return not titled or w.startswith("rs") or w.startswith("hospital")
+        if w in pub["phrase_breaks"] or tok in (",", ";", "/", "|", ":"):
+            return False
+        if w in pub["title_words"]:
+            titled = True
+            continue
+        if not tok[0].isalnum() or tok[0].isupper() or tok[0].isdigit():
+            continue
+        return False
+    return False
+
+
+def _eponym(e: Entity, text: str) -> bool:
+    """A disease named after a person (Parkinson, Crohn, Hodgkin): an ICD code written onto it, or
+    an unambiguous disease word before or after it."""
+    pub = _public()
+    before = text[max(0, e.start - 20):e.start]
+    if _ICD_BEFORE.search(before):
+        return True
+    words = re.findall(r"[^\W\d_]+", before)
+    if words and words[-1].lower() in pub["disease_before"]:
+        return True
+    m = re.match(r"(?:['’]s)?\s*([^\W\d_]+)", text[e.end:e.end + 30])
+    return bool(m and m.group(1).lower() in pub["disease_after"])
+
+
 def _clean_names(found: list[Entity], text: str, public: bool = True) -> list[Entity]:
     """A name model's people without forms of address ("kak", "Customer") and titles, and its
-    organisations without ordinary phrases and public bodies dressed up ("VA BTN")."""
+    organisations without ordinary phrases and public bodies dressed up ("VA BTN"). People who are
+    really an institution's or a disease's name are dropped; so are health facilities (public)."""
     pub, out = _public(), []
     cased = any(c.isupper() for c in text)      # all-lowercase text has no capitals to go by
     for e in found:
         if e.type in ("PERSON", "ORG") and " ".join(e.text.strip(" .,").lower().split()) in pub["not_names"]:
             continue
+        if e.type == "PERSON" and (_namesake(e, text) or _eponym(e, text)):
+            continue
+        if e.type == "ORG" and public and (_first_word(re.sub(r"(?i)^rumah\s+sakit", "RS", e.text)) in pub["facilities"]
+                                           or any(w.lower() in _FACILITY_ANYWHERE for w in re.findall(r"[^\W\d_]+", e.text))):
+            continue                             # a hospital, clinic or pharmacy: public, and what an
+                                                 # analysis of claims or referrals needs to see
         if e.type == "ORG" and cased and _not_an_organisation(e.text, pub["organisations"] if public else ()):
             continue
         if e.type == "ORG" and public and len(e.text.split()) <= 4 and e.text.split()[0].lower() in pub["public_prefixes"]:
@@ -205,7 +278,7 @@ def find(text: str, *, types: set[str] | None = None, terms: list[Term] = (), fo
 
 
 # Placeholders already in the text ([NIK_1]) are never found again.
-_PLACEHOLDER = re.compile(r"\[[A-Z][A-Z_]{1,15}_\d{1,3}\]")
+_PLACEHOLDER = re.compile(r"\[[A-Z][A-Z_]{1,15}_\d{1,7}\]")
 
 
 def _resolve(found: list[Entity], text: str) -> list[Entity]:
