@@ -26,6 +26,18 @@ names = [
     "transformers==4.57.6; sys_platform == 'darwin' and platform_machine == 'x86_64'",
 ]
 presidio = ["presidio-analyzer>=2.2"]
+# Tables for the command line: CSV, Parquet, JSON Lines, Excel. On an Intel Mac numpy stays below 2
+# (for the name model), which needs an older pyarrow and pandas.
+files = [
+    "pandas>=2",
+    "pyarrow>=14",
+    "openpyxl>=3",
+    "pandas<2.3; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "pyarrow<16; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+]
+
+[project.scripts]
+lindungidatamu = "lindungidatamu.cli:main"
 
 [project.urls]
 Source = "https://github.com/kfhanson/lindungidatamu"

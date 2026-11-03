@@ -96,10 +96,26 @@ class GlinerNames:
         self.threshold = threshold
         self.case = case
         self.name = model
+        self.revision = revision
+
+    def _entities(self, text: str, found: list[dict]) -> list[Entity]:
+        return [Entity(LABELS[e["label"]], e["start"], e["end"], text[e["start"]:e["end"]], "model", self.name)
+                for e in found if e["label"] in LABELS]
 
     def find(self, text: str) -> list[Entity]:
         seen = model_view(text) if self.case == "auto" else text
-        out = []
-        for e in self.model.predict_entities(seen, list(LABELS), threshold=self.threshold):
-            out.append(Entity(LABELS[e["label"]], e["start"], e["end"], text[e["start"]:e["end"]], "model", self.name))
-        return out
+        return self._entities(text, self.model.predict_entities(seen, list(LABELS), threshold=self.threshold))
+
+    def find_many(self, texts: list[str], batch_size: int = 32) -> list[list[Entity]]:
+        """find() for many texts, run through the model in batches (faster than one by one)."""
+        seen = [model_view(t) if self.case == "auto" else t for t in texts]
+        if not seen:
+            return []
+        try:
+            results = self.model.inference(seen, list(LABELS), threshold=self.threshold, batch_size=batch_size)
+        except (AttributeError, TypeError):          # older GLiNER releases
+            try:
+                results = self.model.batch_predict_entities(seen, list(LABELS), threshold=self.threshold)
+            except AttributeError:
+                results = [self.model.predict_entities(s, list(LABELS), threshold=self.threshold) for s in seen]
+        return [self._entities(t, r) for t, r in zip(texts, results)]

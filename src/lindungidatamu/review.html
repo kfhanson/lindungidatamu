@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Masking Review</title>
+<style>
+:root {
+  --bg: #f7f7f5; --surface: #ffffff; --surface-2: #f0f0ec; --border: #deded8;
+  --ink: #1d1d1b; --ink-2: #55554f; --ink-3: #8a8a82; --accent: #2f5bd3;
+  --good: #1f7a3d; --bad: #b3261e; --warn: #9a6200;
+  --t0: #c9dcff; --t1: #ffd9b8; --t2: #d4f0c8; --t3: #f3cdea; --t4: #fff0a8; --t5: #cdeeee; --t6: #e2d6ff; --t7: #e8e3d8;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #161615; --surface: #1f1f1d; --surface-2: #2a2a27; --border: #3a3a36;
+  --ink: #ecece8; --ink-2: #b4b4ac; --ink-3: #85857d; --accent: #8fb0ff;
+  --good: #6fcf8e; --bad: #ff8a80; --warn: #e6b450;
+  --t0: #2c4475; --t1: #6b4122; --t2: #2f5527; --t3: #5d2e52; --t4: #5b5114; --t5: #1e5252; --t6: #43357a; --t7: #4a463c;
+  color-scheme: dark;
+}}
+:root[data-theme="dark"] {
+  --bg: #161615; --surface: #1f1f1d; --surface-2: #2a2a27; --border: #3a3a36;
+  --ink: #ecece8; --ink-2: #b4b4ac; --ink-3: #85857d; --accent: #8fb0ff;
+  --good: #6fcf8e; --bad: #ff8a80; --warn: #e6b450;
+  --t0: #2c4475; --t1: #6b4122; --t2: #2f5527; --t3: #5d2e52; --t4: #5b5114; --t5: #1e5252; --t6: #43357a; --t7: #4a463c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+header { padding: 16px 20px 8px; }
+h1 { font-size: 18px; margin: 0 0 4px; }
+.meta { color: var(--ink-2); font-size: 13px; }
+.meta b { color: var(--ink); font-weight: 600; }
+nav { display: flex; gap: 4px; padding: 0 20px; border-bottom: 1px solid var(--border); }
+nav button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; color: var(--ink-2); font: inherit; cursor: pointer; }
+nav button.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 10px 20px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.seg button { background: var(--surface); border: 0; padding: 5px 10px; font: inherit; color: var(--ink-2); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button.on { background: var(--accent); color: var(--surface); }
+label.chk { display: inline-flex; gap: 6px; align-items: center; color: var(--ink-2); cursor: pointer; }
+input[type=search], select { background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font: inherit; }
+.chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; background: var(--surface); color: var(--ink-2); cursor: pointer; font-size: 12px; }
+.chip.on { color: var(--ink); border-color: var(--ink-3); }
+.chip i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: 0; }
+main { padding: 0 20px 40px; }
+.wrap { overflow: auto; max-height: calc(100vh - 190px); border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+table { border-collapse: separate; border-spacing: 0; font-size: 13px; }
+th, td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 5px 8px; text-align: left; vertical-align: top; }
+thead th { position: sticky; top: 0; background: var(--surface-2); z-index: 2; white-space: nowrap; font-weight: 600; }
+th .n { font-weight: 400; color: var(--ink-3); font-size: 11px; display: block; }
+td.rh, th.rh { position: sticky; left: 0; background: var(--surface-2); z-index: 1; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+thead th.rh { z-index: 3; }
+#grid td { max-width: 260px; min-width: 70px; white-space: pre-wrap; word-break: break-word; }
+#grid tr:hover td { background: var(--surface-2); }
+#grid tr { cursor: pointer; }
+#grid tr.sel td { outline: 2px solid var(--accent); outline-offset: -2px; }
+td.hit { box-shadow: inset 3px 0 0 var(--accent); }
+mark { color: var(--ink); border-radius: 3px; padding: 0 2px; }
+mark.ok { box-shadow: 0 -2px 0 var(--good) inset; }
+mark.no { box-shadow: 0 -2px 0 var(--bad) inset; text-decoration: line-through; text-decoration-color: var(--bad); }
+.ph { font-family: ui-monospace, Menlo, monospace; font-size: 12px; border-radius: 3px; padding: 0 3px; }
+.num { font-variant-numeric: tabular-nums; text-align: right; }
+.muted { color: var(--ink-3); }
+#drawer { position: fixed; top: 0; right: 0; width: min(620px, 100vw); height: 100vh; background: var(--surface); border-left: 1px solid var(--border); box-shadow: -8px 0 24px rgba(0,0,0,.12); transform: translateX(105%); transition: transform .18s; overflow: auto; z-index: 10; padding: 16px 20px 40px; }
+#drawer.open { transform: none; }
+#drawer h2 { font-size: 16px; margin: 0; }
+#drawer h3 { font-size: 13px; margin: 18px 0 6px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; }
+.dhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.x { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--ink); padding: 3px 9px; cursor: pointer; font: inherit; }
+pre.rowtext { white-space: pre-wrap; word-break: break-word; background: var(--surface-2); border-radius: 6px; padding: 10px; font: 12.5px/1.55 ui-monospace, Menlo, monospace; margin: 0; max-height: 340px; overflow: auto; }
+.ent { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.ent small { color: var(--ink-3); display: block; }
+.vb { display: inline-flex; gap: 4px; }
+.vb button { border: 1px solid var(--border); background: var(--surface); color: var(--ink-2); border-radius: 5px; padding: 2px 8px; cursor: pointer; font: inherit; font-size: 12px; }
+.vb button.ok.on { background: var(--good); border-color: var(--good); color: var(--surface); }
+.vb button.no.on { background: var(--bad); border-color: var(--bad); color: var(--surface); }
+.prob { display: grid; grid-template-columns: 170px 1fr 1fr; gap: 4px 10px; font-size: 13px; align-items: center; }
+.pbar { position: relative; height: 16px; background: var(--surface-2); border-radius: 3px; }
+.pbar span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink-3); border-radius: 3px; }
+.pbar span.y { background: var(--warn); }
+.pbar em { position: absolute; right: 4px; top: 0; font-style: normal; font-size: 11px; line-height: 16px; color: var(--ink); }
+.pbar::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; border-left: 1px dashed var(--ink-3); }
+.note { color: var(--ink-2); font-size: 13px; max-width: 900px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin: 12px 0; }
+.hidden { display: none !important; }
+.legend { color: var(--ink-3); font-size: 12px; }
+@media (max-width: 640px) { header, .bar, main, nav { padding-left: 16px; padding-right: 16px; } .prob { grid-template-columns: 110px 1fr 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Masking review: <span id="fname"></span></h1>
+  <div class="meta" id="meta"></div>
+</header>
+<nav>
+  <button data-tab="table" class="on">Rows</button>
+  <button data-tab="cols">Columns</button>
+  <button data-tab="review">My review</button>
+  <button data-tab="help">How to read this</button>
+</nav>
+
+<section id="tab-table">
+  <div class="bar">
+    <span class="seg" id="view">
+      <button data-v="hl" class="on">Highlighted</button><button data-v="orig">Original</button><button data-v="mask">Masked</button>
+    </span>
+    <label class="chk"><input type="checkbox" id="onlyHits" checked> Only rows with something found</label>
+    <label class="chk"><input type="checkbox" id="onlyCols" checked> Only columns with something found</label>
+    <label class="chk"><input type="checkbox" id="unreviewed"> Only rows I haven't reviewed</label>
+    <input type="search" id="q" placeholder="Search values…">
+    <span class="chips" id="types"></span>
+    <span class="legend" id="shown"></span>
+  </div>
+  <main><div class="wrap"><table id="grid"></table></div></main>
+</section>
+
+<section id="tab-cols" class="hidden"><main>
+  <p class="note">One row per column of the file, over the sampled rows, with the action its policy gave it and why. “Fully” means 90% or more of a value's characters fell inside something found. Click a column to see only it in the Rows tab.</p>
+  <div class="wrap"><table id="cols"></table></div>
+</main></section>
+
+<section id="tab-review" class="hidden"><main>
+  <div class="card note">
+    Mark each thing found as <b>Right</b> or <b>Wrong</b> in a row's panel, and add what it <b>missed</b>. Your marks stay in this browser only.
+    The export holds row numbers, column numbers, types and your marks: no values, so it is safe to share.
+  </div>
+  <div class="bar" style="padding-left:0"><button class="x" id="export">Export my review (JSON)</button><button class="x" id="clear">Clear my review</button></div>
+  <div class="wrap"><table id="tally"></table></div>
+</main></section>
+
+<section id="tab-help" class="hidden"><main><div class="card note" id="help"></div></main></section>
+
+<aside id="drawer" aria-label="Row detail"></aside>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const D = JSON.parse(document.getElementById('data').textContent);
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const KEY = 'ld-review:' + D.file;
+let R = {};
+try { R = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(R)); } catch (e) {} };
+// R[rowIndex] = {e: {entId: 'ok'|'no'}, missed: [{c, type}]}
+
+const typeCount = {};
+D.rows.forEach(r => r.ents.forEach(e => typeCount[e.type] = (typeCount[e.type] || 0) + 1));
+const TYPES = Object.keys(typeCount).sort((a, b) => typeCount[b] - typeCount[a]);
+const color = t => `var(--t${Math.max(0, TYPES.indexOf(t)) % 8})`;
+const ALLTYPES = [...new Set([...TYPES, 'PERSON', 'ORG', 'ADDRESS', 'PHONE', 'EMAIL', 'NIK', 'NPWP', 'BPJS', 'BANK_ACCOUNT', 'CARD', 'DATE_OF_BIRTH', 'OTHER'])];
+const on = new Set(TYPES);
+let view = 'hl', colFilter = null, selRow = null;
+
+$('#fname').textContent = D.file;
+$('#meta').innerHTML = `<b>${D.rows.length}</b> sampled rows of ${D.total_rows.toLocaleString()} · ${D.columns.length} columns · ${D.names_model ? `name model <b>${esc(D.names_model)}</b>` : 'patterns only (no name model)'}` +
+  (D.decision_model ? ` · decision model <b>${esc(D.decision_model)}</b>` : '') +
+  ` · masking took ${D.seconds.mask}s` + (D.decision_model ? `, decision model ${D.seconds.decision}s` : '');
+
+// ---------- column stats
+const colStat = D.columns.map((name, i) => ({ i, name, dtype: D.dtypes[i], values: 0, full: 0, part: 0, types: {} }));
+D.rows.forEach(r => r.cells.forEach(cell => {
+  const s = colStat[cell.c]; s.values++;
+  let cov = 0; cell.e.forEach(([a, b]) => cov += b - a);
+  cov = cov / Math.max(1, cell.v.length);
+  if (cov >= 0.9) s.full++; else if (cov > 0) s.part++;
+  cell.e.forEach(([, , id]) => { const t = r.ents[id].type; s.types[t] = (s.types[t] || 0) + 1; });
+}));
+const hitCols = new Set(colStat.filter(s => s.full + s.part).map(s => s.i));
+
+// ---------- chips
+$('#types').innerHTML = TYPES.map(t => `<span class="chip on" data-t="${esc(t)}"><i style="background:${color(t)}"></i>${esc(t)} ${typeCount[t]}</span>`).join('');
+$('#types').onclick = e => { const c = e.target.closest('.chip'); if (!c) return;
+  const t = c.dataset.t; on.has(t) ? on.delete(t) : on.add(t); c.classList.toggle('on'); drawGrid(); };
+
+function cellHTML(r, cell) {
+  if (view === 'orig') return esc(cell.v);
+  const hits = cell.e.filter(([, , id]) => on.has(r.ents[id].type)).sort((x, y) => x[0] - y[0]);
+  let out = '', last = 0;
+  const done = new Set();
+  for (const [a, b, id] of hits) {
+    const e = r.ents[id], v = (R[r.i] || {e: {}}).e[id];
+    out += esc(cell.v.slice(last, a));
+    if (view === 'mask') { if (!done.has(id)) out += `<span class="ph" style="background:${color(e.type)}">${esc(e.ph)}</span>`; done.add(id); }
+    else out += `<mark class="${v || ''}" style="background:${color(e.type)}" title="${esc(e.type)} · ${esc(e.source)}${e.detector ? ' · ' + esc(e.detector) : ''}">${esc(cell.v.slice(a, b))}</mark>`;
+    last = b;
+  }
+  return out + esc(cell.v.slice(last));
+}
+
+function rowMatches(r) {
+  const hit = r.ents.some(e => on.has(e.type));
+  if ($('#onlyHits').checked && !hit) return false;
+  if ($('#unreviewed').checked) { const m = R[r.i]; if (m && (Object.keys(m.e).length || (m.missed || []).length)) return false; }
+  if (colFilter !== null && !r.cells.some(c => c.c === colFilter && c.e.length)) return false;
+  const q = $('#q').value.trim().toLowerCase();
+  if (q && !r.text.toLowerCase().includes(q)) return false;
+  return true;
+}
+
+function drawGrid() {
+  let cols = D.columns.map((_, i) => i);
+  if (colFilter !== null) cols = [colFilter];
+  else if ($('#onlyCols').checked) cols = cols.filter(i => hitCols.has(i));
+  const rows = D.rows.filter(rowMatches);
+  $('#shown').textContent = `${rows.length} rows · ${cols.length} columns` + (colFilter !== null ? ` · column “${D.columns[colFilter]}” only (clear in Columns tab)` : '');
+  let h = '<thead><tr><th class="rh">row</th>' + cols.map(i => `<th>${esc(D.columns[i])}<span class="n">${esc(D.dtypes[i])}${(D.policy || {})[D.columns[i]] ? ' · ' + esc(D.policy[D.columns[i]].action) : ''}</span></th>`).join('') + '</tr></thead><tbody>';
+  for (const r of rows) {
+    const byCol = {}; r.cells.forEach(c => byCol[c.c] = c);
+    h += `<tr data-i="${r.i}" class="${selRow === r.i ? 'sel' : ''}"><td class="rh">${r.i}</td>` + cols.map(i => {
+      const c = byCol[i]; if (!c) return '<td class="muted">·</td>';
+      return `<td class="${c.e.length ? 'hit' : ''}">${cellHTML(r, c)}</td>`;
+    }).join('') + '</tr>';
+  }
+  $('#grid').innerHTML = h + '</tbody>';
+}
+$('#grid').onclick = e => { const tr = e.target.closest('tr[data-i]'); if (tr) openRow(+tr.dataset.i); };
+['#onlyHits', '#onlyCols', '#unreviewed'].forEach(s => $(s).onchange = drawGrid);
+$('#q').oninput = drawGrid;
+$('#view').onclick = e => { const b = e.target.closest('button'); if (!b) return;
+  view = b.dataset.v; document.querySelectorAll('#view button').forEach(x => x.classList.toggle('on', x === b)); drawGrid(); };
+
+// ---------- row panel
+function rowTextHTML(r) {
+  let out = '', last = 0;
+  for (const e of r.ents) {
+    const v = (R[r.i] || {e: {}}).e[e.id];
+    out += esc(r.text.slice(last, e.start)) + `<mark class="${v || ''}" style="background:${color(e.type)}" title="${esc(e.type)}">${esc(r.text.slice(e.start, e.end))}</mark>`;
+    last = e.end;
+  }
+  return out + esc(r.text.slice(last));
+}
+function maskedHTML(r) {
+  return esc(r.masked).replace(/\[([A-Z][A-Z_]{1,15})_(\d{1,3})\]/g, (m, t) => `<span class="ph" style="background:${color(t)}">${m}</span>`);
+}
+function probRows(r) {
+  if (!D.decision_model) return '';
+  const qs = Object.keys(D.questions);
+  const bar = p => p === undefined ? '<span class="muted">not asked</span>' :
+    `<div class="pbar"><span class="${p >= 0.5 ? 'y' : ''}" style="width:${(p * 100).toFixed(0)}%"></span><em>${p.toFixed(2)}${p >= 0.5 ? ' yes' : ''}</em></div>`;
+  return `<h3>Decision model (${esc(D.decision_model)})</h3>
+    <div class="prob"><b class="muted">question</b><b class="muted">original row</b><b class="muted">after masking</b>` +
+    qs.map(q => `<span title="${esc(D.questions[q])}">${esc(q.replace(/_/g, ' '))}</span>${bar((r.before || {})[q])}${bar((r.after || {})[q])}`).join('') +
+    `</div><p class="legend">Bar = yes-probability; dashed line = 0.5 cutoff; amber = answered yes. Hover a question for its wording.</p>`;
+}
+function openRow(i) {
+  selRow = i; const r = D.rows.find(x => x.i === i); const m = R[i] || (R[i] = {e: {}, missed: []});
+  const colsOf = e => e.cells.map(c => D.columns[c]).join(', ') + (e.header ? ' (column name)' : '');
+  $('#drawer').innerHTML = `<div class="dhead"><h2>Row ${i}</h2><span><button class="x" id="prev">↑</button> <button class="x" id="next">↓</button> <button class="x" id="close">Close</button></span></div>
+    <h3>Found (${r.ents.length})</h3>
+    ${r.ents.length ? r.ents.map(e => `<div class="ent"><div><mark style="background:${color(e.type)}">${esc(r.text.slice(e.start, e.end))}</mark>
+        → <span class="ph" style="background:${color(e.type)}">${esc(e.ph)}</span>
+        <small>${esc(e.type)} · ${esc(e.source)}${e.detector ? ' · ' + esc(e.detector) : ''} · in ${esc(colsOf(e))}</small></div>
+        <span class="vb" data-id="${e.id}"><button class="ok ${m.e[e.id] === 'ok' ? 'on' : ''}" data-v="ok">Right</button><button class="no ${m.e[e.id] === 'no' ? 'on' : ''}" data-v="no">Wrong</button></span></div>`).join('')
+      : '<p class="muted">Nothing found in this row.</p>'}
+    <h3>Missed something?</h3>
+    <div class="bar" style="padding:0"><select id="mcol">${r.cells.map(c => `<option value="${c.c}">${esc(D.columns[c.c])}</option>`).join('')}</select>
+      <select id="mtype">${ALLTYPES.map(t => `<option>${esc(t)}</option>`).join('')}</select><button class="x" id="madd">Add</button></div>
+    <div id="mlist">${(m.missed || []).map((x, k) => `<div class="ent"><div>${esc(x.type)} <small>in ${esc(D.columns[x.c])}</small></div><button class="x" data-k="${k}">Remove</button></div>`).join('')}</div>
+    ${probRows(r)}
+    <h3>Row as the library saw it</h3><pre class="rowtext">${rowTextHTML(r)}</pre>
+    <h3>Row after masking</h3><pre class="rowtext">${maskedHTML(r)}</pre>
+    <p class="legend">${r.words} words${D.names_max_words ? ` · the name model reads at most ${D.names_max_words}${r.words > D.names_max_words ? ' — <b>this row is longer, so its end was never read by the name model</b>' : ''}` : ''}</p>`;
+  $('#drawer').classList.add('open');
+  $('#close').onclick = () => { $('#drawer').classList.remove('open'); selRow = null; drawGrid(); };
+  const vis = D.rows.filter(rowMatches).map(x => x.i), k = vis.indexOf(i);
+  $('#prev').onclick = () => k > 0 && openRow(vis[k - 1]);
+  $('#next').onclick = () => k >= 0 && k < vis.length - 1 && openRow(vis[k + 1]);
+  $('#drawer').querySelectorAll('.vb').forEach(el => el.onclick = ev => { const b = ev.target.closest('button'); if (!b) return;
+    const id = +el.dataset.id; m.e[id] = m.e[id] === b.dataset.v ? undefined : b.dataset.v; if (!m.e[id]) delete m.e[id]; save(); openRow(i); drawGrid(); drawTally(); });
+  $('#madd').onclick = () => { (m.missed = m.missed || []).push({c: +$('#mcol').value, type: $('#mtype').value}); save(); openRow(i); drawTally(); };
+  $('#mlist').onclick = ev => { const b = ev.target.closest('button[data-k]'); if (!b) return; m.missed.splice(+b.dataset.k, 1); save(); openRow(i); drawTally(); };
+  document.querySelectorAll('#grid tr').forEach(tr => tr.classList.toggle('sel', +tr.dataset.i === i));
+}
+document.addEventListener('keydown', e => {
+  if (!$('#drawer').classList.contains('open') || e.target.matches('input, select')) return;
+  if (e.key === 'Escape') $('#close').click();
+  if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); $('#next').click(); }
+  if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); $('#prev').click(); }
+});
+
+// ---------- columns tab
+function polCell(name) {
+  const r = (D.policy || {})[name]; if (!r) return '';
+  return `<b>${esc(r.action)}${r.type ? ' ' + esc(r.type) : ''}</b><span class="n" style="display:block;color:var(--ink-3);font-size:11px;max-width:320px;white-space:normal">${esc(r.reason || '')}</span>`;
+}
+function drawCols() {
+  const pct = (a, b) => b ? (100 * a / b).toFixed(1) + '%' : '–';
+  $('#cols').innerHTML = '<thead><tr><th class="rh">#</th><th>column</th><th>type</th><th>action</th><th class="num">values</th><th class="num">fully masked</th><th class="num">partly</th><th>found</th></tr></thead><tbody>' +
+    colStat.map(s => `<tr data-c="${s.i}" style="cursor:pointer"><td class="rh">C${s.i + 1}</td><td>${esc(s.name)}</td><td class="muted">${esc(s.dtype)}</td><td>${polCell(s.name)}</td><td class="num">${s.values}</td>
+      <td class="num">${pct(s.full, s.values)}</td><td class="num">${pct(s.part, s.values)}</td>
+      <td>${Object.entries(s.types).sort((a, b) => b[1] - a[1]).map(([t, n]) => `<span class="chip"><i style="background:${color(t)}"></i>${esc(t)} ${n}</span>`).join(' ')}</td></tr>`).join('') + '</tbody>';
+}
+$('#cols').onclick = e => { const tr = e.target.closest('tr[data-c]'); if (!tr) return;
+  colFilter = +tr.dataset.c === colFilter ? null : +tr.dataset.c; tab('table'); drawGrid(); };
+
+// ---------- review tab
+function drawTally() {
+  const t = {};
+  const add = (type, k) => { (t[type] = t[type] || {found: 0, ok: 0, no: 0, missed: 0})[k]++; };
+  D.rows.forEach(r => { r.ents.forEach(e => { add(e.type, 'found'); const v = (R[r.i] || {e: {}}).e[e.id]; if (v) add(e.type, v); });
+    ((R[r.i] || {}).missed || []).forEach(x => add(x.type, 'missed')); });
+  const rowsDone = D.rows.filter(r => { const m = R[r.i]; return m && (Object.keys(m.e).length || (m.missed || []).length); }).length;
+  const f = (a, b) => b ? (a / b).toFixed(2) : '–';
+  $('#tally').innerHTML = '<thead><tr><th>type</th><th class="num">found</th><th class="num">marked right</th><th class="num">marked wrong</th><th class="num">precision</th><th class="num">missed</th><th class="num">recall*</th></tr></thead><tbody>' +
+    Object.entries(t).sort((a, b) => b[1].found - a[1].found).map(([k, v]) => `<tr><td><span class="chip"><i style="background:${color(k)}"></i>${esc(k)}</span></td>
+      <td class="num">${v.found}</td><td class="num">${v.ok}</td><td class="num">${v.no}</td><td class="num">${f(v.ok, v.ok + v.no)}</td>
+      <td class="num">${v.missed}</td><td class="num">${f(v.ok, v.ok + v.missed)}</td></tr>`).join('') +
+    `</tbody><caption style="caption-side:bottom;text-align:left;padding:8px;color:var(--ink-3)">${rowsDone} of ${D.rows.length} rows reviewed. *Recall counts only rows you reviewed: right ÷ (right + missed).</caption>`;
+}
+$('#export').onclick = () => {
+  const out = { file: D.file, names_model: D.names_model, decision_model: D.decision_model, rows: [] };
+  D.rows.forEach(r => { const m = R[r.i]; if (!m || !(Object.keys(m.e).length || (m.missed || []).length)) return;
+    out.rows.push({ row: r.i,
+      found: r.ents.map(e => ({ type: e.type, source: e.source, columns: e.cells.map(c => 'C' + (c + 1)), header: e.header, mark: m.e[e.id] || null })),
+      missed: (m.missed || []).map(x => ({ type: x.type, column: 'C' + (x.c + 1) })) }); });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 1)], {type: 'application/json'}));
+  a.download = D.file.replace(/\.[^.]+$/, '') + '.review.json'; a.click();
+};
+$('#clear').onclick = () => { R = {}; save(); drawTally(); drawGrid(); };
+
+// ---------- help
+$('#help').innerHTML = `
+<p><b>What was run.</b> ${D.rows.length} rows picked at random from ${D.total_rows.toLocaleString()}, masked by the column policy:
+<b>tokenize</b> replaces every value of a column with a placeholder; <b>scan text</b> masks what patterns${D.names_model ? ' and the name model' : ''} find in each value;
+<b>scan patterns</b> masks what patterns find; <b>keep</b> leaves the column; <b>drop</b> removes it. The Columns tab shows each column's action and why.</p>
+<p><b>Rows tab.</b> Highlighted shows what was masked, coloured by type (hover for type and detector). Masked shows what the output file holds instead. Click a row for its panel. Keys: ↑/↓ or j/k move between rows, Esc closes.</p>
+<p><b>Marking.</b> For each thing masked, Right means it is personal data; Wrong means it should have stayed (a hospital, a code). Add anything personal it missed.
+The My review tab turns your marks into precision and recall per type. If a whole column is wrong, change its action in the policy file and run again.</p>
+<p><b>Privacy.</b> This file contains the real values. It works offline, loads nothing from the internet, and keeps your marks in this browser only. Don't share it; share the exported review instead.</p>`;
+
+// ---------- tabs
+function tab(name) {
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  ['table', 'cols', 'review', 'help'].forEach(t => $('#tab-' + t).classList.toggle('hidden', t !== name));
+}
+document.querySelector('nav').onclick = e => { const b = e.target.closest('button'); if (b) tab(b.dataset.tab); };
+
+drawGrid(); drawCols(); drawTally();
+</script>
+</body>
+</html>

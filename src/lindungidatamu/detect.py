@@ -178,8 +178,6 @@ def _namesake(e: Entity, text: str) -> bool:
     "a.n.") ends the phrase, so "RS Hermina, dr. Budi" keeps Budi a person. A doctor after a smaller
     facility ("Klinik dr. Budi") stays a person: that is usually the doctor's own practice."""
     pub = _public()
-    if _first_word(e.text) in pub["facilities"]:
-        return True
     after = text[e.end:e.end + 30]
     m = re.match(r"\s*([^\W\d_]+)", after)
     if m and m.group(1).lower() in pub["facility_suffixes"]:
@@ -201,6 +199,25 @@ def _namesake(e: Entity, text: str) -> bool:
             continue
         return False
     return False
+
+
+def _trim_facility(e: Entity) -> Entity | None:
+    """A name the model ran together with a facility word and title ("KLINIK DR. HENDRA KUSUMA",
+    "RSUD DR. SOETOMO"): the name alone, so the facility rules can judge it. None if nothing is left."""
+    pub, skipped_facility, cut = _public(), False, 0
+    text = re.sub(r"(?i)^rumah\s+sakit", "RS   ", e.text[:10]) + e.text[10:]   # same length
+    for m in _TOKEN.finditer(text):
+        w = m.group(0).rstrip(".").lower()
+        if w in pub["facilities"]:
+            skipped_facility = True
+        elif not (skipped_facility and (w in pub["title_words"] or not m.group(0)[0].isalnum())):
+            cut = m.start()
+            break
+    else:
+        return None
+    if not skipped_facility or cut == 0:
+        return e
+    return Entity(e.type, e.start + cut, e.end, e.text[cut:], e.source, e.detector)
 
 
 def _eponym(e: Entity, text: str) -> bool:
@@ -226,8 +243,12 @@ def _clean_names(found: list[Entity], text: str, public: bool = True) -> list[En
     for e in found:
         if e.type in ("PERSON", "ORG") and " ".join(e.text.strip(" .,").lower().split()) in pub["not_names"]:
             continue
-        if e.type == "PERSON" and (_namesake(e, text) or _eponym(e, text)):
-            continue
+        if e.type == "PERSON":
+            e = _trim_facility(e)
+            if e is None or _namesake(e, text) or _eponym(e, text):
+                continue
+        if e.type == "ORG" and public and _namesake(e, text):
+            continue                             # "RS Pondok Indah": the model's ORG left out the "RS"
         if e.type == "ORG" and public and (_first_word(re.sub(r"(?i)^rumah\s+sakit", "RS", e.text)) in pub["facilities"]
                                            or any(w.lower() in _FACILITY_ANYWHERE for w in re.findall(r"[^\W\d_]+", e.text))):
             continue                             # a hospital, clinic or pharmacy: public, and what an

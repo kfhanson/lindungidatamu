@@ -16,9 +16,9 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python }}
-      # The core and the Presidio add-on. The name model (GLiNER, ~1 GB) is left out: its tests use
+      # The core, the command line (with pandas) and the Presidio add-on. The name model (GLiNER, ~1 GB) is left out: its tests use
       # a stand-in finder, and the benchmark runs it locally.
-      - run: uv run --no-project --with . --with pytest --with presidio-analyzer pytest -q
+      - run: uv run --no-project --with ".[files]" --with pytest --with presidio-analyzer pytest -q
       # The synthetic benchmark with patterns only: fails if identifiers, numbers or addresses
       # drop below 100% or false alarms appear.
       - run: uv run --no-project --with . python bench/run.py --data v1 && uv run --no-project --with . python bench/run.py --data v2

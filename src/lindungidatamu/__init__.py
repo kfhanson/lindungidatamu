@@ -10,6 +10,7 @@ addresses, names) before text reaches an AI model, a log or a dataset.
 
 from .detect import Entity, Format, Term, find, patterns_version
 from .mask import Item, Masked, Vault, mask
+from . import table
 
 __version__ = "0.1.0.dev0"
-__all__ = ["Entity", "Format", "Item", "Masked", "Term", "Vault", "find", "mask", "patterns_version"]
+__all__ = ["Entity", "Format", "Item", "Masked", "Term", "Vault", "find", "mask", "patterns_version", "table"]

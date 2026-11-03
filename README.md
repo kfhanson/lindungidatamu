@@ -52,6 +52,39 @@ pip install "lindungidatamu[names]"        # + names, organisations, addresses (
 pip install "lindungidatamu[presidio]"     # + Indonesian recognisers for Microsoft Presidio
 ```
 
+## Tables and files
+
+```bash
+pip install "lindungidatamu[files,names]"
+lindungidatamu scan claims.parquet --names     # claims.policy.json: one action per column, and why
+lindungidatamu mask claims.parquet --names     # claims.masked.parquet + a report (counts only)
+lindungidatamu review claims.parquet --names   # claims.review.html: check it by eye, offline
+```
+
+A table's personal data is mostly in identifier columns, labelled by the column name rather than a
+word before each number. So `scan` decides per column, from its name, a sample of its values and their
+shape, and writes the decision down for you to check:
+
+| Action | For | Example |
+|---|---|---|
+| `tokenize` | identifier and person columns: every value becomes a placeholder, no scanning | `member_no` → `[MEMBER_12]` |
+| `scan_text` | mixed text: each distinct value is masked by patterns and the name model | `provider_name`, `notes` |
+| `scan_patterns` | categories, codes, amounts as text: patterns only | `diagnosis`, `plan` |
+| `keep` | numbers, dates, true/false | `amount_paid` |
+| `drop` | remove the column (set it yourself) | |
+
+Columns of one type share placeholders (`patient_member_no` and `emp_member_no` are both `MEMBER`),
+so joins survive. Every text column is pattern-scanned whatever its action. After masking, a residual
+check looks for identifiers and pattern matches still visible; if it finds any, nothing is written.
+
+**One-way by default.** Without `--vault`, the values behind the placeholders are not kept anywhere.
+With `--vault claims.vault.json` the masking is reversible: analyse the masked data with an AI model,
+then `lindungidatamu restore findings.md --vault claims.vault.json` puts the real values back (exact
+placeholders only). The vault holds every real value: keep it private, never send it with the data.
+
+The same in Python, without pandas: `ld.table.profile(columns)` and `ld.table.mask_table(columns, policy)`,
+where `columns` is a dict of column name → list of values.
+
 ## What it finds
 
 | Type | Example | Found when |
@@ -129,7 +162,7 @@ lindungidatamu Pro adds judgement, compliance evidence and convenience on top.
 |---|---|---|
 | Finding | Patterns and validators, GLiNER name model (runs locally) | Fine-tuned Indonesian name model (all-caps text, institutions named after people) |
 | Masking | `mask` / `restore`, Vault, your own terms and formats | |
-| Tables and files *(planned)* | Per-column decisions (identifier, safe, text), whole-column tokens, residual check, policy file, command-line tool | Decision model per column: UU PDP specific data (health, children, finance, criminal records, biometric, genetic) |
+| Tables and files | Per-column decisions (identifier, person, text, category), whole-column tokens, residual check, policy file, command line, review page | Decision model per column: UU PDP specific data (health, children, finance, criminal records, biometric, genetic) |
 | Messages | | Decision model per message: UU PDP specific data, still identifiable after masking, confidential business information |
 | Reports | Masking report: counts per column and type, versions | DPIA-ready report mapped to UU PDP articles, over-masking score |
 | Integrations *(planned)* | Python helpers, Presidio add-on, self-hosted OpenAI-compatible proxy | Proxy policy, audit log, admin view and SSO for teams; hosted API |
