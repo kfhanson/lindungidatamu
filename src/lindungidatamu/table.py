@@ -278,6 +278,7 @@ class MaskedTable:
     report: dict                 # counts only: safe to share
     vault: Vault                 # the values behind the placeholders: save it only to make this reversible
     details: dict = field(default_factory=dict, repr=False)   # column -> value -> (masked, entities), if asked
+    frame: object = field(default=None, repr=False)            # the masked pandas DataFrame, from mask_frame
 
 
 def mask_table(columns: dict[str, list], policy: dict[str, Rule], *, vault: Vault | None = None, names=None,
@@ -366,6 +367,44 @@ def mask_table(columns: dict[str, list], policy: dict[str, Rule], *, vault: Vaul
         "seconds": round(time.perf_counter() - t0, 1),
     }
     return MaskedTable(out, report, vault, details)
+
+
+def _missing(v) -> bool:
+    if v is None or isinstance(v, (str, list, tuple, dict)):
+        return v is None
+    try:
+        import pandas as pd
+        return bool(pd.isna(v))
+    except (ImportError, TypeError, ValueError):
+        return False
+
+
+def mask_frame(df, policy: "dict[str, Rule] | str | Path | None" = None, *, names=None, vault: Vault | None = None,
+               **options) -> MaskedTable:
+    """Mask a pandas DataFrame: table mode with a frame in and a frame out (`.frame`).
+
+    policy    a policy (dict, or a policy file to load); profiled from the frame if not given. For data
+              that matters, profile once, check the policy, and pass it every time.
+    Columns whose values did not change keep their dtype; the others become text (object).
+    """
+    import pandas as pd
+    names_of = {c: str(c) for c in df.columns}
+    if len(set(names_of.values())) < len(names_of):
+        raise ValueError("mask_frame: column names must be unique")
+    columns = {names_of[c]: [None if _missing(v) else v for v in df[c].tolist()] for c in df.columns}
+    if policy is None:
+        policy = profile(columns, names=names)
+    elif isinstance(policy, (str, Path)):
+        policy = load_policy(policy)
+    done = mask_table(columns, policy, vault=vault, names=names, **options)
+    out = pd.DataFrame(index=df.index)
+    for c in df.columns:
+        values = done.columns.get(names_of[c])
+        if values is None:
+            continue                                         # dropped
+        out[c] = df[c] if values == columns[names_of[c]] else pd.Series(values, index=df.index, dtype=object)
+    done.frame = out
+    return done
 
 
 def check(original: dict[str, list], masked: dict[str, list], policy: dict[str, Rule], tokenized: set[str]) -> dict:

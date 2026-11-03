@@ -52,6 +52,28 @@ pip install "lindungidatamu[names]"        # + names, organisations, addresses (
 pip install "lindungidatamu[presidio]"     # + Indonesian recognisers for Microsoft Presidio
 ```
 
+## AI clients, logs and pandas
+
+```python
+from openai import OpenAI                     # also AsyncOpenAI, Anthropic, AsyncAnthropic
+client = ld.wrap(OpenAI())                    # one wrapper = one conversation
+r = client.chat.completions.create(model="gpt-4.1", messages=[{"role": "user", "content": text}])
+r.choices[0].message.content                  # the model saw [NIK_1]; you get the real value back
+```
+
+`wrap` masks every request (messages, system prompts, tool results) and restores every answer, tool
+call arguments and streams included (`stream=True`; a placeholder cut across two chunks is held back
+until it is whole). The same value keeps its placeholder for the whole conversation, and a value the
+model has seen once is masked wherever it appears again, also in earlier answers you send back.
+Covered: OpenAI chat completions and responses, Anthropic messages, embeddings. Images, audio and
+uploaded files are not masked; the SDKs' `.stream()` helpers and `with_raw_response` raise instead
+of sending text unmasked. Add `names=GlinerNames()` for people and organisations.
+
+```python
+handler.addFilter(ld.LogFilter())             # log lines, arguments and tracebacks, patterns only
+done = ld.mask_frame(df)                      # table mode on a DataFrame: done.frame, done.report
+```
+
 ## Tables and files
 
 ```bash
@@ -165,7 +187,7 @@ lindungidatamu Pro adds judgement, compliance evidence and convenience on top.
 | Tables and files | Per-column decisions (identifier, person, text, category), whole-column tokens, residual check, policy file, command line, review page | Decision model per column: UU PDP specific data (health, children, finance, criminal records, biometric, genetic) |
 | Messages | | Decision model per message: UU PDP specific data, still identifiable after masking, confidential business information |
 | Reports | Masking report: counts per column and type, versions | DPIA-ready report mapped to UU PDP articles, over-masking score |
-| Integrations *(planned)* | Python helpers, Presidio add-on, self-hosted OpenAI-compatible proxy | Proxy policy, audit log, admin view and SSO for teams; hosted API |
+| Integrations | `wrap` for OpenAI and Anthropic clients, `LogFilter`, `mask_frame`, Presidio add-on; *planned:* LangChain and LiteLLM hooks, self-hosted OpenAI-compatible proxy | *Planned:* proxy policy, audit log, admin view and SSO for teams; hosted API |
 
 The free version uses no decision model: it finds identifiers and names, not facts. A diagnosis
 next to a masked name stays visible; telling you that it is UU PDP health data is Pro's job.

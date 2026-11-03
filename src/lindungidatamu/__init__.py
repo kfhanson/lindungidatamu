@@ -11,6 +11,10 @@ addresses, names) before text reaches an AI model, a log or a dataset.
 from .detect import Entity, Format, Term, find, patterns_version
 from .mask import Item, Masked, Vault, mask
 from . import table
+from .llm import wrap
+from .logs import LogFilter
+from .table import mask_frame
 
 __version__ = "0.1.0.dev0"
-__all__ = ["Entity", "Format", "Item", "Masked", "Term", "Vault", "find", "mask", "patterns_version", "table"]
+__all__ = ["Entity", "Format", "Item", "LogFilter", "Masked", "Term", "Vault", "find", "mask", "mask_frame",
+           "patterns_version", "table", "wrap"]
