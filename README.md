@@ -107,6 +107,48 @@ placeholders only). The vault holds every real value: keep it private, never sen
 The same in Python, without pandas: `ld.table.profile(columns)` and `ld.table.mask_table(columns, policy)`,
 where `columns` is a dict of column name → list of values.
 
+## Re-identification risk
+
+Masking takes out names and numbers, but the columns that stay can still single someone out together:
+a woman born on 14 March 1987, living in one kelurahan, admitted on 3 February, is probably the only
+one in the table. `risk` measures that and finds the smallest change that fixes it:
+
+```bash
+lindungidatamu risk claims.parquet                          # measure, and write the least fix into the policy
+lindungidatamu risk claims.parquet --keep "birth_date=5 years"   # what the analysis needs; others give way
+lindungidatamu mask claims.parquet                          # applies it, with the risk before and after in the report
+```
+
+```
+Now:   k = 1; 99.9% of rows unique; 100.0% in groups of fewer than 5 people; average risk 0.999
+       unique rows without each column: birth_date 11.4%, admitted 82.8%, kelurahan 98.9%, sex 99.8%
+
+| Column     | Hierarchy | Publish as | Information kept |
+| birth_date | date      | 5 years    | 26.0%            |
+| sex        | sex       | value      | 100.0%           |
+| kelurahan  | wilayah   | kabupaten  | 58.1%            |
+| admitted   | date      | month      | 42.1%            |
+
+After: k = 11; 0.0% of rows unique; 0.0% in groups of fewer than 5 people; average risk 0.016
+```
+
+(A made-up table of 196,793 claims; real tables vary.)
+
+- **Quasi-identifiers** are found by `scan` and marked in the policy (`"role": "quasi"`): birth dates
+  and ages, sex, area (kelurahan to provinsi, by Kemendagri code), postal codes, event dates. A
+  diagnosis is marked `sensitive`.
+- **k** is the smallest group of people sharing those columns (k-anonymity): an attacker who knows
+  them about someone can't narrow it below 1 in k. Groups count people, not rows, when a member or
+  patient column says whose claims are whose.
+- **The fix** steps columns up their hierarchy (date → month → year → 5 years; kelurahan →
+  kecamatan → kabupaten → provinsi; ICD-10 → category → chapter), searching every combination for
+  the one that reaches k (default 5) losing the least information. At most 1% of rows
+  (`--max-suppress`) may instead have those columns replaced by `*`.
+- **l** reports, for the sensitive column, the fewest different values in any group: l = 1 means a
+  group all shares one diagnosis, which you learn without knowing the row.
+
+In Python: `r = ld.risk(df, keep={"birth_date": "5 years"})`, then `ld.mask_frame(df, r.policy, k=r.k)`.
+
 ## What it finds
 
 | Type | Example | Found when |
