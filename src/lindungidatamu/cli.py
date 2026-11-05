@@ -98,7 +98,7 @@ def cmd_mask(a) -> int:
         for c in columns:                       # C1, C2... in file order, as scan prints them
             label(c)
         done = mask_table(columns, policy, vault=vault or Vault(merge_partial=False), names=names,
-                          k=settings.get("k"), person=settings.get("person"),
+                          k=settings.get("k"), person=settings.get("person"), l=settings.get("l") or 1,
                           progress=lambda m: print(f"  {label(m.split(':')[0])}:{m.split(':', 1)[1]}", file=sys.stderr))
         vault = done.vault
         report = {"file": path.name} | done.report
@@ -177,7 +177,8 @@ def cmd_risk(a) -> int:
         _say(f"--keep: no column {', '.join(unknown)}")
         return 1
     try:
-        result = risk(columns, policy, k=a.k, max_suppress=a.max_suppress, keep=keep)
+        result = risk(columns, policy, k=a.k, max_suppress=a.max_suppress, keep=keep, l=a.l,
+                      intervals=not a.no_intervals)
     except ValueError as e:
         _say(f"--keep: {e}")
         return 1
@@ -197,25 +198,35 @@ def cmd_risk(a) -> int:
         _say(f"       {label(c)} (sensitive): l = {s['l']}; {s['groups_one_value']:,} groups share one value "
              f"({s['rows_in_groups_one_value']:,} rows)")
     plan = result.plan
-    _say(f"\nLeast change that reaches k = {a.k} (at most {a.max_suppress:.1%} of rows suppressed):\n")
+    if result.intervals:
+        anchors = sorted({v["relative_to"] for v in result.intervals.values()})
+        _say(f"\nDates as intervals from {', '.join(label(x) for x in anchors)}: " +
+             ", ".join(f"{label(c)} as {'age' if v['interval'] == 'age' else 'days after'}"
+                       for c, v in result.intervals.items()) + " (--no-intervals to keep them as dates)")
+    goal = f"k = {a.k}" + (f" and l = {a.l}" if a.l > 1 else "")
+    _say(f"\nLeast change that reaches {goal} (at most {a.max_suppress:.1%} of rows suppressed):\n")
     _say("| Column | Hierarchy | Publish as | Information kept |\n|---|---|---|---:|")
     for c, lvl in plan.levels.items():
-        _say(f"| {label(c)} | {plan.hierarchies[c]} | {lvl} | {_pct(1 - plan.lost.get(c, 0))} |")
+        h = plan.hierarchies[c]
+        if c in result.intervals:
+            h = f"{'age at' if h == 'age' else 'days from'} {label(result.intervals[c]['relative_to'])}"
+        _say(f"| {label(c)} | {h} | {lvl} | {_pct(1 - plan.lost.get(c, 0))} |")
     if plan.reached and plan.candidates:
         _say("\nOther ways to reach it (choose one with --keep COLUMN, or edit the policy):")
         for alt in plan.candidates[:3]:
             _say("  " + ", ".join(f"{label(c)} {lvl}" for c, lvl in alt["levels"].items()) +
                  f"  (information lost {alt['loss']:.2f} vs {plan.loss:.2f})")
     if not plan.reached:
-        _say(f"\nk = {a.k} is NOT reached even fully generalised within the suppression budget: drop a column, "
+        _say(f"\n{goal} is NOT reached even fully generalised within the suppression budget: drop a column, "
              "raise --max-suppress, or lower --k. Nothing written.")
         return 2
     _say(f"\nAfter: {_risk_line(result.after)}")
     for c, s in (result.after.get("sensitive") or {}).items():
         _say(f"       {label(c)} (sensitive): l = {s['l']}; {s['groups_one_value']:,} groups share one value")
     save_policy(result.policy, policy_path, **settings,
-                risk={"k": a.k, "max_suppress": a.max_suppress, "person": result.person})
-    _say(f"\npolicy: {policy_path} (generalize levels written; change any, then: lindungidatamu mask {path.name})")
+                risk={"k": a.k, **({"l": a.l} if a.l > 1 else {}), "max_suppress": a.max_suppress,
+                      "person": result.person})
+    _say(f"\npolicy: {policy_path} (generalize levels and intervals written; change any, then: lindungidatamu mask {path.name})")
     return 0
 
 
@@ -243,6 +254,8 @@ def _hide(report: dict, label) -> dict:
             return m
         rk = report["risk"]
         r["risk"] = {"before": one(rk["before"]), "after": one(rk["after"]),
+                     "intervals": {label(c): {**v, "relative_to": label(v["relative_to"])}
+                                   for c, v in (rk.get("intervals") or {}).items()},
                      "generalized": {label(c): v for c, v in rk["generalized"].items()}}
     return r
 
@@ -336,7 +349,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--max-suppress", type=float, default=0.01, help="share of rows that may be suppressed (default 0.01)")
     p.add_argument("--keep", action="append", default=[], metavar="COLUMN[=LEVEL]",
                    help='what the analysis needs: a column as it is, or no coarser than a level '
-                        '("birth_date=5 years"); repeatable')
+                        '("birth_date=5 years"); repeatable. A kept date stays a date')
+    p.add_argument("--l", type=int, default=1, help="also need at least L different values of each sensitive "
+                   "column in every group (default 1: off)")
+    p.add_argument("--no-intervals", action="store_true", help="keep dates as dates, not age / days from one anchor date")
     p.add_argument("--sample", type=int, default=2000, help="rows sampled per column when profiling (default 2000)")
     common(p, names=False)
     p.set_defaults(run=cmd_risk)

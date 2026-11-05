@@ -144,10 +144,16 @@ After: k = 11; 0.0% of rows unique; 0.0% in groups of fewer than 5 people; avera
   kecamatan → kabupaten → provinsi; ICD-10 → category → chapter), searching every combination for
   the one that reaches k (default 5) losing the least information. At most 1% of rows
   (`--max-suppress`) may instead have those columns replaced by `*`.
-- **l** reports, for the sensitive column, the fewest different values in any group: l = 1 means a
-  group all shares one diagnosis, which you learn without knowing the row.
+- **Dates become intervals.** With two or more dates, one is kept as the anchor (the event the others
+  follow: admission, not discharge or policy start) and the others are published as whole years to
+  it (birth date → age at admission) or days from it (discharge → length of stay). That is what most
+  analyses need, and it identifies far less than calendar dates, so less has to give way.
+  `--no-intervals` keeps them as dates; a column named in `--keep` stays a date.
+- **l** reports, for each sensitive column, the fewest different values in any group: l = 1 means a
+  group all shares one diagnosis, which you learn without knowing the row. `--l 2` makes the fix
+  reach that too (generalising further, or suppressing those groups within the budget).
 
-In Python: `r = ld.risk(df, keep={"birth_date": "5 years"})`, then `ld.mask_frame(df, r.policy, k=r.k)`.
+In Python: `r = ld.risk(df, keep={"birth_date": "5 years"}, l=2)`, then `ld.mask_frame(df, r.policy, k=r.k, l=r.l)`.
 
 ## What it finds
 

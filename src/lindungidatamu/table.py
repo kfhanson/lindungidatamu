@@ -18,7 +18,8 @@ Actions:
 A column can also have a role. `quasi` columns (birth date, sex, area, event dates) are not personal
 data alone but can single someone out together; `sensitive` columns (a diagnosis) are what must not
 be learned about them. `generalize` steps a quasi column up its hierarchy (date -> month -> year ...);
-see the anonymity module and `lindungidatamu risk`.
+`relative_to` turns a date into an interval from another date column of the row (`interval`: "age",
+whole years to it, or "days" from it). See the anonymity module and `lindungidatamu risk`.
 
 Every text column is at least pattern-scanned, whatever its profile says: a column that looks like
 a category can still hold a NIK in a few rows.
@@ -105,6 +106,8 @@ class Rule:
     role: str | None = None          # "quasi" or "sensitive"
     hierarchy: str | None = None     # for quasi columns: date, age, wilayah, postal, icd10, sex, category
     generalize: str | None = None    # the level of that hierarchy to publish ("year", "kabupaten"...)
+    relative_to: str | None = None   # a date column published as an interval from this (anchor) date column
+    interval: str | None = None      # "age" (whole years to the anchor) or "days" (from the anchor)
 
     def __post_init__(self):
         if self.action not in ACTIONS:
@@ -115,6 +118,15 @@ class Rule:
             raise ValueError(f"unknown role {self.role!r}: quasi or sensitive")
         if self.hierarchy is not None and self.hierarchy not in anonymity.LEVELS:
             raise ValueError(f"unknown hierarchy {self.hierarchy!r}: one of {', '.join(anonymity.HIERARCHIES)}")
+        if (self.relative_to is None) != (self.interval is None):
+            raise ValueError("relative_to and interval go together")
+        if self.interval is not None:
+            if self.interval not in ("age", "days"):
+                raise ValueError(f"unknown interval {self.interval!r}: age or days")
+            if self.hierarchy is None:
+                self.hierarchy = self.interval
+            elif self.hierarchy != self.interval:
+                raise ValueError(f"an interval in {self.interval} takes the {self.interval} hierarchy, not {self.hierarchy}")
         if self.generalize not in (None, "value"):
             if not self.hierarchy:
                 raise ValueError("generalize needs a hierarchy")
@@ -330,11 +342,12 @@ def save_policy(policy: dict[str, Rule], path: str | Path, **meta) -> None:
 def load_policy(path: str | Path) -> dict[str, Rule]:
     doc = json.loads(Path(path).read_text(encoding="utf-8"))
     return {c: Rule(r["action"], r.get("type"), r.get("reason", ""), r.get("stats", {}), r.get("role"),
-                    r.get("hierarchy"), r.get("generalize")) for c, r in doc["columns"].items()}
+                    r.get("hierarchy"), r.get("generalize"), r.get("relative_to"), r.get("interval"))
+            for c, r in doc["columns"].items()}
 
 
 def load_settings(path: str | Path) -> dict:
-    """The policy file's settings besides the columns (file, rows, risk: {k, max_suppress, person}...)."""
+    """The policy file's settings besides the columns (file, rows, risk: {k, l, max_suppress, person}...)."""
     doc = json.loads(Path(path).read_text(encoding="utf-8"))
     return {k: v for k, v in doc.items() if k != "columns"}
 
@@ -364,7 +377,7 @@ class MaskedTable:
 
 def mask_table(columns: dict[str, list], policy: dict[str, Rule], *, vault: Vault | None = None, names=None,
                batch_size: int = 32, keep_details: bool = False, progress=None, k: int | None = None,
-               person: str | None = None) -> MaskedTable:
+               person: str | None = None, l: int = 1) -> MaskedTable:
     """Mask a table by its policy. Columns missing from the policy are pattern-scanned.
 
     vault     pass one to reuse placeholders from an earlier table; a new one otherwise (table mode:
@@ -373,7 +386,9 @@ def mask_table(columns: dict[str, list], policy: dict[str, Rule], *, vault: Vaul
     progress  called with a short message per column
     k         quasi-identifier columns are generalised as their `generalize` says, then the rows still
               in a group smaller than k have them suppressed ("*"). Default 5 when any column is
-              generalised; without generalising, risk is only measured
+              generalised; without generalising, risk is only measured. Date columns with `relative_to`
+              are published as intervals (age, days) from their anchor column
+    l         also suppress rows in groups with fewer than l different values of a sensitive column
     person    the column that says whose row it is (default: the tokenized member/patient/NIK column)
     """
     t0 = time.perf_counter()
@@ -381,7 +396,7 @@ def mask_table(columns: dict[str, list], policy: dict[str, Rule], *, vault: Vaul
     if person is not None and person not in columns:
         person = None
     original = columns
-    columns, risk = _anonymize(columns, policy, k, person)
+    columns, risk = _anonymize(columns, policy, k, person, l)
     vault = vault if vault is not None else Vault(merge_partial=False)
     out, cols_report, details = {}, {}, {}
     tokenized = set()
@@ -461,9 +476,20 @@ def mask_table(columns: dict[str, list], policy: dict[str, Rule], *, vault: Vaul
     return MaskedTable(out, report, vault, details)
 
 
-def _anonymize(columns: dict[str, list], policy: dict[str, Rule], k: int | None, person: str | None):
-    """Generalise and suppress the quasi-identifiers (when the policy says to), and measure the risk
-    before and after. Returns the columns to mask and the risk report (counts only)."""
+def _intervals(columns: dict[str, list], policy: dict[str, Rule]) -> tuple[dict[str, list], dict]:
+    """Date columns with `relative_to` turned into intervals from their anchor (the anchor as it was)."""
+    out, done = dict(columns), {}
+    for c, r in policy.items():
+        if r.relative_to and c in columns and r.relative_to in columns and r.action != "drop":
+            out[c] = anonymity.interval(columns[c], columns[r.relative_to], r.interval)
+            done[c] = {"relative_to": r.relative_to, "interval": r.interval}
+    return out, done
+
+
+def _anonymize(columns: dict[str, list], policy: dict[str, Rule], k: int | None, person: str | None, l: int = 1):
+    """Turn dates into intervals, generalise and suppress the quasi-identifiers (when the policy says
+    to), and measure the risk before and after. Returns the columns to mask and the risk report
+    (counts only)."""
     quasi = [c for c in columns if (r := policy.get(c)) and r.role == "quasi" and r.action != "drop"]
     sensitive = [c for c in columns if (r := policy.get(c)) and r.role == "sensitive" and r.action != "drop"]
     if not quasi:
@@ -472,11 +498,13 @@ def _anonymize(columns: dict[str, list], policy: dict[str, Rule], k: int | None,
     hierarchies = {c: policy[c].hierarchy for c in levels}
     target = k if k is not None else 5
     before = anonymity.measure(columns, quasi, sensitive, k=target, person=person)
-    if not levels and k is None:
+    converted, intervals = _intervals(columns, policy)
+    if not levels and not intervals and k is None and l <= 1:
         return columns, {"before": before, "generalized": {}, "after": before}
-    done, suppressed = anonymity.apply(columns, levels, hierarchies, k=target, person=person, quasi=quasi)
+    done, suppressed = anonymity.apply(converted, levels, hierarchies, k=target, person=person, quasi=quasi,
+                                       sensitive=sensitive, l=l)
     after = anonymity.measure(done, quasi, sensitive, k=target, person=person, skip=suppressed)
-    return done, {"before": before, "generalized": levels, "after": after}
+    return done, {"before": before, "intervals": intervals, "generalized": levels, "after": after}
 
 
 def _missing(v) -> bool:
@@ -506,7 +534,7 @@ def mask_frame(df, policy: "dict[str, Rule] | str | Path | None" = None, *, name
         policy = profile(columns, names=names)
     elif isinstance(policy, (str, Path)):
         settings = load_settings(policy).get("risk") or {}
-        for key in ("k", "person"):
+        for key in ("k", "person", "l"):
             if settings.get(key) is not None:
                 options.setdefault(key, settings[key])
         policy = load_policy(policy)
@@ -550,13 +578,16 @@ class Risk:
     before: dict                  # measure() of the table as it is (counts only)
     plan: "anonymity.Plan | None"  # the least generalisation that reaches k
     after: dict                   # measure() after the plan, suppressed rows left out
-    policy: dict                  # the policy with the plan written in (generalize levels)
+    policy: dict                  # the policy with the plan written in (generalize levels, intervals)
     k: int
     person: str | None
+    intervals: dict = field(default_factory=dict)   # column -> {relative_to, interval}
+    l: int = 1
 
 
 def risk(data, policy: "dict[str, Rule] | str | Path | None" = None, *, k: int = 5, max_suppress: float = 0.01,
-         person: str | None = None, names=None, keep: "dict[str, str] | tuple[str, ...]" = ()) -> Risk:
+         person: str | None = None, names=None, keep: "dict[str, str] | tuple[str, ...]" = (),
+         intervals: bool = True, l: int = 1) -> Risk:
     """How identifying a table's quasi-identifiers are, and the least generalisation that fixes it.
 
     data      a pandas DataFrame, or a dict of column name -> values
@@ -566,6 +597,10 @@ def risk(data, policy: "dict[str, Rule] | str | Path | None" = None, *, k: int =
     max_suppress  the share of rows whose quasi-identifiers may be replaced by "*" instead
     keep      what the analysis needs: column -> the most general level allowed ({"birth_date": "5 years"}),
               or just column names to keep as they are (others give way instead)
+    intervals with two or more dates, publish all but one (the anchor) as intervals from it: age at
+              admission, days after admission. A policy that already says `relative_to` is followed;
+              False turns intervals off. Columns named in `keep` stay dates
+    l         also make every group hold at least l different values of each sensitive column
     Nothing is changed: the plan is written into `policy` (as `generalize`) for mask_table to apply.
     """
     columns = data if isinstance(data, dict) else \
@@ -588,12 +623,26 @@ def risk(data, policy: "dict[str, Rule] | str | Path | None" = None, *, k: int =
             policy[c].hierarchy = anonymity.guess_hierarchy(columns[c])
     before = anonymity.measure(columns, quasi, sensitive, k=k, person=person)
     if not quasi:
-        return Risk(before, None, before, policy, k, person)
+        return Risk(before, None, before, policy, k, person, l=l)
+    limit = dict(keep) if isinstance(keep, dict) else dict.fromkeys(keep, "value")
+    if not intervals:
+        for c in quasi:
+            if policy[c].relative_to:
+                policy[c].relative_to = policy[c].interval = None
+                policy[c].hierarchy = anonymity.guess_hierarchy(columns[c])
+    elif not any(policy[c].relative_to for c in quasi):
+        dates = [c for c in quasi if policy[c].hierarchy == "date" and c not in limit]
+        birth = tuple(c for c in dates if BIRTH_WORDS & set(_words(c)))
+        for c, (anchor, unit) in anonymity.plan_intervals(columns, dates, birth).items():
+            policy[c].relative_to, policy[c].interval, policy[c].hierarchy = anchor, unit, unit
+            policy[c].generalize = None
+    converted, made = _intervals(columns, policy)
     hierarchies = {c: policy[c].hierarchy for c in quasi}
-    plan = anonymity.suggest(columns, hierarchies, k=k, max_suppress=max_suppress, person=person,
-                             limit=dict(keep) if isinstance(keep, dict) else dict.fromkeys(keep, "value"))
-    done, suppressed = anonymity.apply(columns, plan.levels, hierarchies, k=k, person=person)
+    plan = anonymity.suggest(converted, hierarchies, k=k, max_suppress=max_suppress, person=person, limit=limit,
+                             sensitive={c: columns[c] for c in sensitive}, l=l)
+    done, suppressed = anonymity.apply(converted, plan.levels, hierarchies, k=k, person=person,
+                                       sensitive=sensitive, l=l)
     after = anonymity.measure(done, quasi, sensitive, k=k, person=person, skip=suppressed)
     for c, lvl in plan.levels.items():
         policy[c].generalize = None if lvl == "value" else lvl
-    return Risk(before, plan, after, policy, k, person)
+    return Risk(before, plan, after, policy, k, person, made, l)

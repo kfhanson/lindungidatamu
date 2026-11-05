@@ -129,15 +129,19 @@ def test_risk_then_mask_applies_the_plan():
     r = risk(t, k=5)
     assert r.person == "member_no" and r.plan.reached
     assert r.before["k"] == 1 and r.after["k"] >= 5
-    assert r.policy["birth_date"].generalize in an.LEVELS["date"]
+    # Two dates: birth date becomes age at admission; admission stays a date, generalised.
+    assert (r.policy["birth_date"].relative_to, r.policy["birth_date"].interval) == ("admitted", "age")
+    assert r.policy["admitted"].relative_to is None and r.policy["admitted"].hierarchy == "date"
     done = mask_table(t, r.policy, k=5)
     rk = done.report["risk"]
     assert rk["after"]["k"] >= 5 and rk["generalized"] == {c: v for c, v in r.plan.levels.items() if v != "value"}
+    assert rk["intervals"] == {"birth_date": {"relative_to": "admitted", "interval": "age"}}
     assert done.report["checks"]["residual"]["clean"]
     born = done.columns["birth_date"]
-    lvl = r.plan.levels["birth_date"]
-    if lvl == "year":
-        assert all(v in ("*",) or len(v) == 4 for v in born)
+    if r.plan.levels["birth_date"] == "value":
+        assert all(v == "*" or 0 <= v <= 80 for v in born)
+    else:
+        assert all(v == "*" or "-" in v for v in born)
     assert all(str(m).startswith("[") for m in done.columns["member_no"])
     assert done.columns["amount_paid"] == t["amount_paid"]          # analysis columns untouched
 
@@ -202,3 +206,88 @@ def test_greedy_search_for_many_columns():
     assert greedy.loss <= exact.loss + 0.25          # close to the exhaustive answer
     done, suppressed = an.apply(t, greedy.levels, h, k=5, person="member_no")
     assert an.measure(done, list(h), k=5, person="member_no", skip=suppressed)["k"] >= 5
+
+
+def test_interval():
+    born = [dt.date(1987, 3, 14), "1987-03-14", "14/03/1987", None, dt.date(2000, 1, 1)]
+    at = [dt.date(2024, 3, 13), dt.date(2024, 3, 14), "2024-03-15", dt.date(2024, 1, 1), None]
+    assert an.interval(born, at, "age") == [36, 37, 37, None, None]
+    assert an.interval([dt.date(2024, 3, 20), dt.date(2024, 3, 1)], [dt.date(2024, 3, 14)] * 2, "days") == [6, -13]
+    assert an.generalize([6, -13, 400], "days", "7 days") == ["0..6", "-14..-8", "399..405"]
+    with pytest.raises(ValueError):
+        an.interval(born, at, "weeks")
+
+
+def stays(n_members: int = 1500, seed: int = 3) -> dict[str, list]:
+    """claims() with a discharge date (a few days after admission) and a policy start (years before)."""
+    t = claims(n_members, seed)
+    rng = random.Random(seed)
+    t["discharged"] = [a + dt.timedelta(days=rng.choice((0, 1, 2, 3, 3, 4, 5, 7, 12))) for a in t["admitted"]]
+    t["policy_start"] = [dt.date(2015, 1, 1) + dt.timedelta(days=rng.randrange(3000)) for _ in t["admitted"]]
+    return t
+
+
+def test_plan_intervals_anchors_on_the_event_the_others_follow():
+    t = stays(300)
+    plan = an.plan_intervals(t, ["birth_date", "admitted", "discharged", "policy_start"], birth=("birth_date",))
+    assert plan == {"birth_date": ("admitted", "age"), "discharged": ("admitted", "days"),
+                    "policy_start": ("admitted", "days")}
+    # Without the name, a date 15+ years before the anchor is still a birth date.
+    assert an.plan_intervals(t, ["birth_date", "admitted"]) == {"birth_date": ("admitted", "age")}
+    assert an.plan_intervals(t, ["admitted"]) == {}
+
+
+def test_intervals_keep_more_than_dates():
+    t = stays()
+    with_iv = risk(t, k=5)
+    without = risk(t, k=5, intervals=False)
+    assert with_iv.plan.reached and without.plan.reached
+    assert with_iv.intervals["discharged"] == {"relative_to": "admitted", "interval": "days"}
+    # Length of stay survives as days; as a date it has to give way to reach k.
+    los = mask_table(t, with_iv.policy, k=5).columns["discharged"]
+    exact = sum(1 for v, a, d in zip(los, t["admitted"], t["discharged"]) if v == (d - a).days)
+    assert exact / len(los) > 0.9
+    assert without.plan.levels["discharged"] != "value"
+    assert risk(t, k=5, keep=("discharged",)).policy["discharged"].relative_to is None
+
+
+def test_l_diversity():
+    # Everyone in region R0 has the same diagnosis: k holds, but being from R0 tells you it.
+    rng = random.Random(1)
+    t = {"member": [f"m{i}" for i in range(200)], "region": [f"R{i % 10}" for i in range(200)],
+         "diagnosis": ["B20" if i % 10 == 0 else rng.choice(["J18", "E11", "I10"]) for i in range(200)]}
+    h = {"region": "category"}
+    plain = an.suggest(t, h, k=5, person="member")
+    assert plain.levels == {"region": "value"}
+    assert an.measure(t, ["region"], ["diagnosis"], k=5, person="member")["sensitive"]["diagnosis"]["l"] == 1
+    plan = an.suggest(t, h, k=5, person="member", sensitive={"diagnosis": t["diagnosis"]}, l=2)
+    assert plan.reached and plan.l == 2 and plan.levels == {"region": "*"}
+    # With room to suppress R0's 20 rows instead, region stays.
+    plan = an.suggest(t, h, k=5, person="member", sensitive={"diagnosis": t["diagnosis"]}, l=2, max_suppress=0.1)
+    assert plan.levels == {"region": "value"} and plan.rows_suppressed == 20
+    done, suppressed = an.apply(t, plan.levels, h, k=5, person="member", sensitive=["diagnosis"], l=2)
+    assert sum(suppressed) == 20
+    after = an.measure(done, ["region"], ["diagnosis"], k=5, person="member", skip=suppressed)
+    assert after["sensitive"]["diagnosis"]["l"] >= 2
+    # Through risk() and mask_table, on the claims table.
+    c = claims()
+    r = risk(c, k=5, l=2)
+    assert r.plan.reached and r.after["sensitive"]["diagnosis"]["l"] >= 2
+    assert mask_table(c, r.policy, k=5, l=2).report["risk"]["after"]["sensitive"]["diagnosis"]["l"] >= 2
+
+
+def test_cli_risk_intervals_and_l(tmp_path, capsys):
+    pytest.importorskip("pandas")
+    from lindungidatamu.cli import main
+    import pandas as pd
+    src = tmp_path / "stays.csv"
+    pd.DataFrame(stays(600)).to_csv(src, index=False)
+    assert main(["risk", str(src), "--l", "2", "--max-suppress", "0.05", "--hide-columns"]) == 0
+    out = capsys.readouterr().out
+    assert "Dates as intervals from" in out and "and l = 2" in out
+    doc = json.loads((tmp_path / "stays.policy.json").read_text())
+    assert doc["risk"]["l"] == 2
+    assert doc["columns"]["discharged"]["relative_to"] == "admitted"
+    assert main(["mask", str(src)]) == 0
+    report = json.loads((tmp_path / "stays.masked.report.json").read_text())
+    assert report["risk"]["after"]["sensitive"]["diagnosis"]["l"] >= 2

@@ -14,9 +14,15 @@ The measures are the standard ones:
     k             the smallest group of rows that share their quasi-identifiers (k-anonymity). An
                   attacker who knows those facts about someone can't narrow them below 1 in k
     unique rows   rows that are alone in their group
-    average risk  groups / rows: the chance of picking the right row, averaged over everyone
+    average risk  the mean of 1 / group size: the chance of picking the right row, averaged over everyone
     l             for a sensitive column (a diagnosis), the fewest different values in any group. l = 1
-                  means some group all shares one diagnosis: you learn it without knowing the row
+                  means some group all shares one diagnosis: you learn it without knowing the row.
+                  `suggest` and `apply` take an `l` to reach as well as k
+
+Dates are most useful, and least identifying, as intervals: age at admission and days from admission
+to discharge say what the analysis needs, the calendar dates mostly say who it was. `plan_intervals`
+picks the date the others hang off (the anchor) and `interval` turns a date into whole years (age) or
+days from it; the anchor itself stays a quasi-identifier, generalised like any date.
 
 Groups count people, not rows, when the table says which rows belong to one person (`person`, a
 tokenized member or patient column): five claims of one patient are a group of one.
@@ -29,6 +35,7 @@ quasi-identifiers replaced by "*". Everything this module reports is counts: saf
 """
 
 import bisect
+import datetime as dt
 import itertools
 import math
 import re
@@ -41,6 +48,7 @@ SUPPRESSED = "*"
 LEVELS = {
     "date": ("value", "month", "year", "5 years", "*"),
     "age": ("value", "5 years", "10 years", "20 years", "*"),
+    "days": ("value", "7 days", "30 days", "90 days", "365 days", "*"),
     "wilayah": ("value", "kecamatan", "kabupaten", "provinsi", "*"),
     "postal": ("value", "3 digits", "2 digits", "*"),
     "icd10": ("value", "category", "chapter", "*"),
@@ -125,6 +133,13 @@ def _step(v, hierarchy: str, level: str, common: set | None = None):
         width = int(level.split()[0])
         lo = int(a // width * width)
         return f"{lo}-{lo + width - 1}"
+    if hierarchy == "days":
+        d = _number(v)
+        if d is None:
+            return "other"
+        width = int(level.split()[0])
+        lo = int(d // width * width)
+        return f"{lo}..{lo + width - 1}"
     if hierarchy == "wilayah":
         digits = re.sub(r"\D", "", _text(v))
         n = {"kecamatan": 6, "kabupaten": 4, "provinsi": 2}[level]
@@ -162,6 +177,81 @@ def generalize(values: list, hierarchy: str, level: str) -> list:
         floor = COMMON_SHARE * len(values)
         common = {t for t, n in counts.items() if n >= floor}
     return [_step(v, hierarchy, level, common) for v in values]
+
+
+def _ordinal(v):
+    d = _ymd(v)
+    if d is None:
+        return None
+    try:
+        return dt.date(*d).toordinal()
+    except ValueError:
+        return None
+
+
+def interval(values: list, anchor: list, unit: str) -> list:
+    """A date column as an interval from the anchor date of the same row.
+
+    unit "age"   whole years from the date to the anchor (birth date -> age at admission)
+         "days"  days from the anchor to the date (discharge -> days after admission; earlier is negative)
+    Empty, or no anchor, gives None.
+    """
+    if unit not in ("age", "days"):
+        raise ValueError(f"unknown interval {unit!r}: age or days")
+    out = []
+    for v, a in zip(values, anchor):
+        d, b = (None if _empty(v) else _ymd(v)), (None if _empty(a) else _ymd(a))
+        if d is None or b is None:
+            out.append(None)
+        elif unit == "age":
+            out.append(b[0] - d[0] - ((b[1], b[2]) < (d[1], d[2])))
+        else:
+            x, y = _ordinal(v), _ordinal(a)
+            out.append(None if x is None or y is None else x - y)
+    return out
+
+
+def plan_intervals(columns: dict[str, list], dates: list[str], birth: tuple[str, ...] = ()) -> dict[str, tuple]:
+    """Which date to anchor on, and each other date's interval: {column: (anchor, "age" | "days")}.
+
+    The anchor is the date the others are closest to (the least spread of days from it, by entropy), the
+    earliest of those that are about as close: in a claims table, admission rather than discharge or
+    policy start. Birth dates (named in `birth`, or 15+ years
+    before the latest date on the median) become age, never the anchor; the rest days. Fewer than two dates: nothing.
+    """
+    if len(dates) < 2:
+        return {}
+    ords = {c: [_ordinal(v) if not _empty(v) else None for v in columns[c]] for c in dates}
+
+    def median(a):
+        xs = sorted(x for x in ords[a] if x is not None)
+        return xs[len(xs) // 2] if xs else math.inf
+
+    latest = max((median(c) for c in dates if median(c) != math.inf), default=math.inf)
+    birth = set(birth) | {c for c in dates if latest != math.inf and median(c) <= latest - 15 * 365}
+    events = [c for c in dates if c not in birth]
+    if not events:
+        return {}
+
+    def spread(a: str) -> float:
+        total = 0.0
+        for c in events:
+            if c != a:
+                total += _entropy([None if x is None or y is None else x - y for x, y in zip(ords[c], ords[a])])
+        present = sum(x is not None for x in ords[a])
+        return total - 1e-9 * present          # ties: the anchor with the fewest empties
+
+    # Admission and discharge are equally close to each other: of the closest, the earliest.
+    scores = {a: spread(a) for a in events}
+    best = min(scores.values())
+    close = [a for a in events if scores[a] <= best + 0.05 * max(abs(best), 1)]
+    anchor = min(close, key=median)
+    plan = {}
+    for c in dates:
+        if c == anchor:
+            continue
+        plan[c] = (anchor, "age" if c in birth else "days")
+    return plan
 
 
 def guess_hierarchy(values: list, sample: int = 500) -> str:
@@ -241,6 +331,34 @@ def _below(sizes, k: int) -> int:
     return int((sizes < k).sum()) if hasattr(sizes, "dtype") else sum(1 for s in sizes if s < k)
 
 
+def _failing(key, sizes, k: int, sensitive: list = (), l: int = 1):
+    """Per row: is its group smaller than k, or with fewer than l different values in a sensitive column?"""
+    np = _numpy()
+    if np is not None and hasattr(key, "dtype"):
+        bad = sizes < k
+        if l > 1 and len(key):
+            groups = int(key.max()) + 1
+            for s in sensitive:
+                s = np.asarray(s, dtype=np.int64)
+                width = int(s.max()) + 1
+                distinct = np.bincount(np.unique(key * width + s) // width, minlength=groups)
+                bad |= distinct[key] < l
+        return bad
+    key, sizes = _list(key), _list(sizes)
+    bad = [x < k for x in sizes]
+    if l > 1:
+        for s in sensitive:
+            seen = defaultdict(set)
+            for g, v in zip(key, s):
+                seen[g].add(v)
+            bad = [b or len(seen[g]) < l for b, g in zip(bad, key)]
+    return bad
+
+
+def _count(bad) -> int:
+    return int(bad.sum()) if hasattr(bad, "dtype") else sum(bad)
+
+
 def _list(x) -> list:
     return x.tolist() if hasattr(x, "tolist") else list(x)
 
@@ -312,19 +430,22 @@ class Plan:
     loss: float                            # information lost: mean entropy lost per column (0..1) + share suppressed
     reached: bool                          # False: even the most general levels don't reach k
     tried: int = 0
+    l: int = 1                             # and at least this many different sensitive values per group
     lost: dict = field(default_factory=dict)                     # column -> share of its information lost
     candidates: list = field(default_factory=list, repr=False)   # other minimal plans: {loss, levels, lost, rows_suppressed}
 
 
 def suggest(columns: dict[str, list], hierarchies: dict[str, str], *, k: int = 5, max_suppress: float = 0.01,
             person: str | None = None, keep_value: tuple[str, ...] = (), limit: dict[str, str] | None = None,
-            max_nodes: int = 3000) -> Plan:
+            max_nodes: int = 3000, sensitive: dict[str, list] | None = None, l: int = 1) -> Plan:
     """The least generalisation that reaches k, suppressing at most `max_suppress` of the rows.
 
     Levels are searched from the least general up. A combination that reaches k makes every more general
     one reach it too (monotone), so those are skipped. Among the minimal ones, the one that loses the
     least information wins: per column, the share of its entropy lost (birth date -> year keeps more
     than birth date -> *), plus the share of rows suppressed.
+    sensitive   column -> values, for l: groups with fewer than l different values in any of them are
+                suppressed too (they count against the budget like groups below k)
     keep_value  columns that must stay as they are
     limit       column -> the most general level allowed ({"birth_date": "5 years"})
     max_nodes   above this many combinations (many quasi-identifiers), a greedy search instead:
@@ -346,6 +467,9 @@ def suggest(columns: dict[str, list], hierarchies: dict[str, str], *, k: int = 5
         enc[c] = [np.asarray(e, dtype=np.int64) for e in levels] if np is not None else levels
     if np is not None and owners is not None:
         owners = np.asarray(owners, dtype=np.int64)
+    sens = [_codes(v) for v in (sensitive or {}).values()] if l > 1 else []
+    if np is not None:
+        sens = [np.asarray(s, dtype=np.int64) for s in sens]
     tops = [len(LEVELS[hierarchies[c]]) - 1 for c in quasi]
     most = dict.fromkeys(keep_value, "value") | (limit or {})
     for c, lvl in most.items():
@@ -361,8 +485,8 @@ def suggest(columns: dict[str, list], hierarchies: dict[str, str], *, k: int = 5
     def below(node) -> int:
         node = tuple(node)
         if node not in seen:
-            _, sizes = _group([enc[c][lvl] for c, lvl in zip(quasi, node)], owners)
-            seen[node] = _below(sizes, k)
+            key, sizes = _group([enc[c][lvl] for c, lvl in zip(quasi, node)], owners)
+            seen[node] = _count(_failing(key, sizes, k, sens, l))
         return seen[node]
 
     def loss(node, b) -> float:
@@ -371,7 +495,9 @@ def suggest(columns: dict[str, list], hierarchies: dict[str, str], *, k: int = 5
     name = lambda nd: {c: LEVELS[hierarchies[c]][lvl] for c, lvl in zip(quasi, nd)}
     share = lambda nd: {c: lost[c][lvl] for c, lvl in zip(quasi, nd)}
     if math.prod(len(r) for r in ranges) > max_nodes:
-        return _greedy(quasi, caps, lost, below, loss, budget, k, hierarchies, name, share)
+        plan = _greedy(quasi, caps, lost, below, loss, budget, k, hierarchies, name, share)
+        plan.l = l
+        return plan
     nodes = sorted(itertools.product(*ranges), key=lambda x: (sum(x), x))
     for node in nodes:
         if any(all(a >= b for a, b in zip(node, f)) for f in found):
@@ -384,10 +510,10 @@ def suggest(columns: dict[str, list], hierarchies: dict[str, str], *, k: int = 5
     if not results:
         node = tuple(caps)
         b = below(node)
-        return Plan(name(node), dict(hierarchies), k, b, loss(node, b), False, tried, share(node))
+        return Plan(name(node), dict(hierarchies), k, b, loss(node, b), False, tried, l, share(node))
     results.sort()
     best, b, node = results[0]
-    return Plan(name(node), dict(hierarchies), k, b, best, True, tried, share(node),
+    return Plan(name(node), dict(hierarchies), k, b, best, True, tried, l, share(node),
                 [{"loss": l_, "levels": name(nd), "lost": share(nd), "rows_suppressed": b_}
                  for l_, b_, nd in results[1:6]])
 
@@ -424,12 +550,14 @@ def _greedy(quasi, caps, lost, below, loss, budget, k, hierarchies, name, share)
                 if bc > budget:
                     break
                 node, b = cand, bc
-    return Plan(name(node), dict(hierarchies), k, b, loss(node, b), reached, tried, share(node))
+    return Plan(name(node), dict(hierarchies), k, b, loss(node, b), reached, tried, 1, share(node))
 
 
 def apply(columns: dict[str, list], levels: dict[str, str], hierarchies: dict[str, str], *, k: int = 5,
-          person: str | None = None, quasi: list[str] | None = None) -> tuple[dict[str, list], list[bool]]:
-    """Generalise the quasi-identifiers, then suppress ("*") those of rows still below k.
+          person: str | None = None, quasi: list[str] | None = None, sensitive: list[str] = (),
+          l: int = 1) -> tuple[dict[str, list], list[bool]]:
+    """Generalise the quasi-identifiers, then suppress ("*") those of rows still below k (or below l
+    different values in a sensitive column).
 
     quasi   all the quasi-identifier columns, including those kept as they are (default: those in levels)
     Returns the new columns (others unchanged) and which rows were suppressed.
@@ -441,8 +569,8 @@ def apply(columns: dict[str, list], levels: dict[str, str], hierarchies: dict[st
     n = max((len(v) for v in columns.values()), default=0)
     if not quasi:
         return out, [False] * n
-    _, sizes = _group([_codes(out[c]) for c in quasi], _codes(columns[person]) if person else None)
-    suppressed = [s < k for s in _list(sizes)]
+    key, sizes = _group([_codes(out[c]) for c in quasi], _codes(columns[person]) if person else None)
+    suppressed = [bool(x) for x in _list(_failing(key, sizes, k, [_codes(columns[c]) for c in sensitive], l))]
     if any(suppressed):
         for c in quasi:
             out[c] = [SUPPRESSED if s and not _empty(v) else v for v, s in zip(out[c], suppressed)]
