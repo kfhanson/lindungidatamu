@@ -449,6 +449,162 @@
   {
    "text": "Saya & rekan kerja datang besok",
    "expect": []
+  },
+  {
+   "text": "NIK 3l75Ol29l2Ol8756 dr si Lalita",
+   "expect": [
+    [
+     "NIK",
+     "3l75Ol29l2Ol8756"
+    ]
+   ]
+  },
+  {
+   "text": "cek NIK 310501610382XXXX valid g",
+   "expect": [
+    [
+     "NIK",
+     "310501610382"
+    ]
+   ]
+  },
+  {
+   "text": "smaa CC 5243699577738726 dong",
+   "expect": [
+    [
+     "CARD",
+     "5243699577738726"
+    ]
+   ]
+  },
+  {
+   "text": "Nomor Rekening: 83218951. Harap",
+   "expect": [
+    [
+     "BANK",
+     "83218951"
+    ]
+   ]
+  },
+  {
+   "text": "reknya 16993821452. Tenks",
+   "expect": [
+    [
+     "BANK",
+     "16993821452"
+    ]
+   ]
+  },
+  {
+   "text": "dia punya HP 081219015525XXXX. Nama",
+   "expect": [
+    [
+     "PHONE",
+     "081219015525"
+    ]
+   ]
+  },
+  {
+   "text": "nomernya +628-5228-7408-1, reknya",
+   "expect": [
+    [
+     "PHONE",
+     "+628-5228-7408-1"
+    ]
+   ]
+  },
+  {
+   "text": "Tempat & Tanggal Lahir: Semarang, 21/11/1996",
+   "expect": [
+    [
+     "DOB",
+     "21/11/1996"
+    ]
+   ]
+  },
+  {
+   "text": "Tanggal lahirnya?\nPelanggan: 5 Agustus 1998\nAgen",
+   "expect": [
+    [
+     "DOB",
+     "5 Agustus 1998"
+    ]
+   ]
+  },
+  {
+   "text": "passport number (MH6653645), and",
+   "expect": [
+    [
+     "PASSPORT",
+     "MH6653645"
+    ]
+   ]
+  },
+  {
+   "text": "nomor KTP Anda: ZF8WL63TT8 dan",
+   "expect": [
+    [
+     "NIK",
+     "ZF8WL63TT8"
+    ]
+   ]
+  },
+  {
+   "text": "Alamat Tinggal       : Sultan Agung 121 Srondol Wetan\n",
+   "expect": [
+    [
+     "ADDRESS",
+     "Sultan Agung 121 Srondol Wetan"
+    ]
+   ]
+  },
+  {
+   "text": "beralamat Desa Margosari RT 004/001 Kec. Denpasar Timur dan dapat",
+   "expect": [
+    [
+     "ADDRESS",
+     "Desa Margosari RT 004/001 Kec. Denpasar Timur"
+    ]
+   ]
+  },
+  {
+   "text": "Alamat: Gang Mawar VII/41, KEL. Sukapada, Kec. Coblong\n",
+   "expect": [
+    [
+     "ADDRESS",
+     "Gang Mawar VII/41, KEL. Sukapada, Kec. Coblong"
+    ]
+   ]
+  },
+  {
+   "text": "atau hubungi kami di +62 90-167 8348 untuk",
+   "expect": [
+    [
+     "PHONE",
+     "+62 90-167 8348"
+    ]
+   ]
+  },
+  {
+   "text": "dengan kode pos 90222. Pastikan",
+   "expect": [
+    [
+     "ADDRESS",
+     "90222"
+    ]
+   ]
+  },
+  {
+   "text": "Jalan ke kantor 2 kali, Ollie 2024 dan Hotel123",
+   "expect": []
+  },
+  {
+   "text": "Tahun lahir 1990 saja",
+   "expect": []
+  },
+  {
+   "text": "Total 1.250.000 dan 3 orang",
+   "expect": []
   }
  ]
 }

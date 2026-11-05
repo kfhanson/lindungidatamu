@@ -155,17 +155,20 @@ In Python: `r = ld.risk(df, keep={"birth_date": "5 years"})`, then `ld.mask_fram
 |---|---|---|
 | `NIK` | `3174091203880004` | 16 digits with a valid province and birth date, or any number labelled NIK/KTP |
 | `NPWP` | `01.234.567.8-901.000`, `NPWP 0012345678901000` | the dotted 15-digit format, or a number after the label NPWP (15 or 16 digits) |
-| `KK`, `BPJS`, `SIM`, `PASSPORT` | `KK 3174…`, `BPJS Kesehatan 0001234567890` | after their label |
-| `BANK` | `no. rek. BCA 1234567890` | after a label (rek., rekening, account no., a/c) |
-| `CARD` | `4111 …` | issuer prefix and Luhn check; public test cards excluded |
-| `PHONE`, `EMAIL` | `0812-3456-7890`, `budi@contoh.co.id` | Indonesian mobile formats; emails |
-| `ADDRESS` | `Jl. Kenanga No. 7 RT 03/RW 05` | Indonesian street address cues |
+| `KK`, `BPJS`, `SIM`, `PASSPORT` | `KK 3174…`, `BPJS Kesehatan 0001234567890`, `passport number (MH6653645)` | after their label; any format of code after a clear label (nomor KTP, SIM, paspor, social security, tax ID) |
+| `BANK` | `no. rek. BCA 1234567890`, `reknya 26055704` | 8-17 digits after a label (rek., rekening, reknya, account no., a/c) |
+| `CARD` | `4111 …`, `CC 5243699577738726` | issuer prefix and Luhn check (public test cards excluded), or any 13-19 digits after CC / kartu kredit / card number |
+| `PHONE`, `EMAIL` | `0812-3456-7890`, `+62 21 5550 1234`, `budi@contoh.co.id` | Indonesian mobile formats; any number after hp / telepon / hubungi di, or starting with +; emails |
+| `DOB` | `Tanggal Lahir: Semarang, 21/11/1996`, `lahir 5 Maret 2004` | a date after tanggal lahir, TTL, lahir, date of birth, DOB |
+| `ADDRESS` | `Jl. Kenanga No. 7 RT 03/RW 05`, `Gang Mawar VII/41, Kel. Sukapada` | street cues (Jl., Jalan, Gang, Perumahan), kelurahan/desa, the line after Alamat:, warga / beralamat …, kode pos |
 | `IP`, `HOST` | `10.0.0.5`, `db01.corp` | private addresses, internal server names |
 | `SECRET` | API keys, private keys, passwords | known key formats and `password = …` |
 | `ORG` | `KAP Budi Santoso, Hamid & Rekan` | a firm named after its partners, whole (no model needed) |
 | `PERSON`, `ORG`, `ADDRESS` | `Budi Santoso` | with a name model (`lindungidatamu[names]`) |
 
-Every pattern has test cases, including near misses it must not match, in `tests/fixtures.json`.
+Numbers are read through common OCR and typing slips (`3l75Ol29l2Ol8756`: O for 0, l for 1), and a masked tail
+(`0812345678XXXX`) doesn't stop a number being found. Every pattern has test cases, including near misses it
+must not match, in `tests/fixtures.json`.
 
 With the name model, a few things are deliberately **not** masked as people:
 - **Health facilities and their namesakes:** `RS Hermina Bekasi`, `RSUD Dr. Soetomo`, `Siloam Hospitals`.

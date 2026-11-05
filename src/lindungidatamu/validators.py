@@ -66,9 +66,44 @@ def nik_labelled(match: str) -> bool:
 
 
 def bank_account(match: str) -> bool:
-    """A labelled bank account number: 9-17 digits, not one digit repeated (a placeholder)."""
+    """A labelled bank account number: 8-17 digits, not one digit repeated (a placeholder)."""
     d = digits(match)
-    return 9 <= len(d) <= 17 and len(set(d)) > 1
+    return 8 <= len(d) <= 17 and len(set(d)) > 1
+
+
+def card_labelled(match: str) -> bool:
+    """A number labelled as a card ("CC", "kartu kredit"): 13-19 digits, Luhn or not (a typo, a
+    made-up number someone still shouldn't send)."""
+    d = digits(match)
+    return 13 <= len(d) <= 19 and len(set(d)) > 1
+
+
+def nik_masked(match: str) -> bool:
+    """The first 12 digits of a NIK whose last four were masked (3174091203XX -> XXXX): province
+    and birth date must still check out."""
+    d = digits(match)
+    return len(d) == 12 and nik(d + "0001")
+
+
+def phone_any(match: str) -> bool:
+    """A labelled phone number in any format: 8-15 digits."""
+    d = digits(match)
+    return 8 <= len(d) <= 15 and len(set(d)) > 1
+
+
+def id_code(match: str) -> bool:
+    """A labelled identifier in any format (a foreign passport, an old SIM): 6-20 capitals and
+    digits with at least two digits, or 8-12 capitals."""
+    s = match.replace("-", "")
+    n = sum(c.isdigit() for c in s)
+    return 6 <= len(s) <= 20 and (n >= 2 or 8 <= len(s) <= 12)
+
+
+def address_line(match: str) -> bool:
+    """The value after "Alamat:": a street or place, not a dash or a placeholder."""
+    s = match.strip()
+    return len(s) >= 5 and (any(c.isdigit() for c in s) or sum(w[:1].isupper() for w in s.split()) >= 2) \
+        and not s.startswith("[")
 
 
 def ipv4(match: str) -> bool:
@@ -85,4 +120,5 @@ def phone_id(match: str) -> bool:
 
 
 VALIDATORS = {"luhn_card": luhn_card, "phone_id": phone_id, "nik": nik, "nik_labelled": nik_labelled, "bank_account": bank_account,
-              "ipv4": ipv4}
+              "ipv4": ipv4, "card_labelled": card_labelled, "nik_masked": nik_masked, "phone_any": phone_any,
+              "id_code": id_code, "address_line": address_line}

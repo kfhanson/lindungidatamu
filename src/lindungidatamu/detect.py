@@ -87,8 +87,9 @@ def _public() -> dict:
 # doesn't take "Budi".
 _ADDRESS_PART = re.compile(
     r"\s*,?\s*(?:"
-    r"RT\.?\s*\d{1,3}\s*[/ ]?\s*RW\.?\s*\d{1,3}|RT\.?\s*\d{1,3}|RW\.?\s*\d{1,3}"
-    r"|(?:Kel(?:urahan)?|Desa|Ds|Dusun|Dsn|Kec(?:amatan)?|Kab(?:upaten)?|Kota|Kodya|Prov(?:insi)?)\.?\s+[A-Z][\w'-]*(?:\s+[A-Z][\w'-]*){0,2}"
+    r"(?i:RT\.?\s*\d{1,3}\s*[/ ]?\s*RW\.?\s*\d{1,3}|RT\.?\s*\d{1,3}\s*/\s*\d{1,3}|RT\.?\s*\d{1,3}|RW\.?\s*\d{1,3})"
+    r"|(?i:Kel(?:urahan)?|Desa|Ds|Dusun|Dsn|Kec(?:amatan)?|Kab(?:upaten)?|Kota|Kodya|Prov(?:insi)?)\.?\s+"
+    r"(?:Adm\.\s+)?[A-Z][\w'-]*(?:\s+[A-Z][\w'-]*){0,2}"
     r"|\d{5}\b)")
 _CITY_PART = re.compile(r"\s*,\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})(?=\s*(?:[,.;\n]|\d{5}\b|$))")
 
@@ -129,16 +130,37 @@ def _words(text: str, word: str) -> list[tuple[int, int]]:
     return [(m.start(), m.end()) for m in rx.finditer(text)]
 
 
+# OCR and fast typing put letters into numbers: O for 0, l and I for 1 ("O8l2-3456-789O"). A run
+# that is mostly digits is read with them as digits; a masked tail (0812345678XXXX) is not part of
+# the number. Same length as the text, so positions don't move.
+_NUMBERISH = re.compile(r"(?<![A-Za-z0-9])[0-9OoIl]*[0-9][0-9OoIlX]*(?![A-Za-z0-9])")
+_AS_DIGITS = str.maketrans("OoIl", "0011")
+
+
+def _as_numbers(text: str) -> str:
+    def fix(m: re.Match) -> str:
+        s = m.group()
+        core = s.rstrip("X")
+        real = sum(c.isdigit() for c in core)
+        if real < 4 or real < 0.6 * len(core) or "X" in core:
+            return s
+        return core.translate(_AS_DIGITS) + " " * (len(s) - len(core))
+    return _NUMBERISH.sub(fix, text)
+
+
 def pattern_entities(text: str, types: set[str] | None = None) -> list[Entity]:
     out = []
+    view = _as_numbers(text)
     for spec, rx, check, allow in _compiled():
         if types and spec["type"] not in types:
             continue
         g = spec.get("group", 0)
-        for m in rx.finditer(text):
+        for m in rx.finditer(text if spec.get("raw") else view):
             value = m.group(g)
             if (check is None or check(value)) and _normal(value) not in allow:
                 start, end = m.start(g), m.end(g)
+                while end > start and text[end - 1].isspace():
+                    end -= 1
                 if spec["type"] == "ADDRESS":
                     end = _extend_address(text, end)
                 out.append(Entity(spec["type"], start, end, text[start:end], "pattern", spec["id"]))

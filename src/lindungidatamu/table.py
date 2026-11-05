@@ -575,6 +575,11 @@ def risk(data, policy: "dict[str, Rule] | str | Path | None" = None, *, k: int =
     elif isinstance(policy, (str, Path)):
         policy = load_policy(policy)
     policy = {c: Rule(**asdict(r)) for c, r in policy.items()}
+    if not any(r.role for r in policy.values()):
+        # A policy made before roles existed: mark them now, leaving every action as it was.
+        for c, r in policy.items():
+            if c in columns:
+                r.role, r.hierarchy = _role(c, columns[c], r)
     person = person if person is not None else person_column(policy)
     quasi = [c for c in columns if (r := policy.get(c)) and r.role == "quasi" and r.action != "drop"]
     sensitive = [c for c in columns if (r := policy.get(c)) and r.role == "sensitive" and r.action != "drop"]

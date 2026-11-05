@@ -1,6 +1,6 @@
 {
  "_comment": "Indonesian personal data and secrets, as regular expressions with checks. `type` is what a match is masked as ([NIK_1]); `group` is the part that is the value (a label before it isn't); `validator` names a check in validators.py; `allow` lists values that never match (public test card numbers). Order matters where two patterns can match the same text: the earlier one wins. tests/fixtures.json is the behaviour, case by case.",
- "version": "2026-11-03.1",
+ "version": "2026-11-04.1",
  "patterns": [
   {
    "id": "private_key",
@@ -137,7 +137,7 @@
    "id": "id_nik_labelled",
    "type": "NIK",
    "_comment": "A number labelled NIK/KTP that isn't a valid 16-digit NIK (a typo, a digit missing): still someone's ID. `group` 1 is the number, so masking leaves the label.",
-   "pattern": "\\b(?:NIK|KTP|no\\.?\\s?KTP|nomor\\s+KTP|nomor\\s+induk\\s+kependudukan)\\b\\s*(?:[:#=.]|no\\.?)?\\s*(\\d(?:[ .-]?\\d){13,17})(?![\\d])",
+   "pattern": "\\b(?:NIK|KTP|no\\.?\\s?KTP|nomor\\s+KTP|nomor\\s+induk\\s+kependudukan)\\b(?:\\s*\\([^)\\n]{0,24}\\))?\\s*(?:[:#=.]|no\\.?)?\\s*(\\d(?:[ .-]?\\d){13,17})(?![\\d])",
    "flags": "i",
    "group": 1,
    "validator": "nik_labelled"
@@ -148,9 +148,121 @@
    "pattern": "\\b\\d{2}\\.\\d{3}\\.\\d{3}\\.\\d-\\d{3}\\.\\d{3}\\b"
   },
   {
+   "id": "card_labelled",
+   "type": "CARD",
+   "pattern": "(?:\\bCC\\b|\\bkartu\\s+(?:kredit|debit)|\\bcredit[\\s‑-]*card|\\bdebit\\s+card|\\bcard\\s*(?:number|no\\.?|#)|\\bno(?:mor)?\\.?\\s*kartu(?:\\s+(?:kredit|debit))?)(?:\\s+(?:dengan\\s+)?(?:number|no\\.?|nomor|yang\\s+terdaftar|reference|berakhiran|ending(?:\\s+in)?))?\\s*[:#.(]?\\s*(\\d(?:[ -]?\\d){12,18})\\b",
+   "group": 1,
+   "validator": "card_labelled",
+   "flags": "i"
+  },
+  {
+   "id": "id_nik_masked",
+   "type": "NIK",
+   "pattern": "\\b(\\d{12})X{4}\\b",
+   "group": 1,
+   "validator": "nik_masked",
+   "raw": true
+  },
+  {
+   "id": "id_code_nik",
+   "type": "NIK",
+   "pattern": "\\b(?:nomor\\s+(?:identitas(?:\\s+nasional)?|KTP|kartu\\s+identitas)|identitas\\s+nasional|kartu\\s+identitas|national\\s+ID(?:\\s+card)?|ID\\s+card|NIK|KTP)(?:\\s+(?:Anda|anda|kamu|Saudara|your|juga\\s+diperlukan))?(?:\\s+(?:number|no\\.?|nomor|#))?\\s*(?:[:#=]\\s*)?\\(?\\s*(?-i:([A-Z0-9][A-Z0-9-]{4,18}[A-Z0-9]))",
+   "group": 1,
+   "validator": "id_code",
+   "flags": "i"
+  },
+  {
+   "id": "id_code_sim",
+   "type": "SIM",
+   "pattern": "\\b(?:nomor\\s+SIM|SIM|lisensi\\s+mengemudi|driver[’']?s?\\s+licen[cs]e|driving\\s+licen[cs]e)(?:\\s+(?:Anda|anda|kamu|Saudara|your|juga\\s+diperlukan))?(?:\\s+(?:number|no\\.?|nomor|#))?\\s*(?:[:#=]\\s*)?\\(?\\s*(?-i:([A-Z0-9][A-Z0-9-]{4,18}[A-Z0-9]))",
+   "group": 1,
+   "validator": "id_code",
+   "flags": "i"
+  },
+  {
+   "id": "id_code_passport",
+   "type": "PASSPORT",
+   "pattern": "\\b(?:nomor\\s+paspor|paspor|passport)(?:\\s+(?:Anda|anda|kamu|Saudara|your|juga\\s+diperlukan))?(?:\\s+(?:number|no\\.?|nomor|#))?\\s*(?:[:#=]\\s*)?\\(?\\s*(?-i:([A-Z0-9][A-Z0-9-]{4,18}[A-Z0-9]))",
+   "group": 1,
+   "validator": "id_code",
+   "flags": "i"
+  },
+  {
+   "id": "id_code_social",
+   "type": "BPJS",
+   "pattern": "\\b(?:nomor\\s+(?:jaminan|asuransi)\\s+sosial|nomor\\s+sosial|jaminan\\s+sosial|asuransi\\s+sosial|social\\s+security|health[\\s‑-]*insurance|nomor\\s+BPJS)(?:\\s+(?:Anda|anda|kamu|Saudara|your|juga\\s+diperlukan))?(?:\\s+(?:number|no\\.?|nomor|#))?\\s*(?:[:#=]\\s*)?\\(?\\s*(?-i:([A-Z0-9][A-Z0-9-]{4,18}[A-Z0-9]))",
+   "group": 1,
+   "validator": "id_code",
+   "flags": "i"
+  },
+  {
+   "id": "id_code_tax",
+   "type": "NPWP",
+   "pattern": "\\b(?:nomor\\s+(?:identitas\\s+)?pajak|tax\\s+(?:ID|identification(?:\\s+number)?)|tax\\s+number)(?:\\s+(?:Anda|anda|kamu|Saudara|your|juga\\s+diperlukan))?(?:\\s+(?:number|no\\.?|nomor|#))?\\s*(?:[:#=]\\s*)?\\(?\\s*(?-i:([A-Z0-9][A-Z0-9-]{4,18}[A-Z0-9]))",
+   "group": 1,
+   "validator": "id_code",
+   "flags": "i"
+  },
+  {
+   "id": "phone_labelled",
+   "type": "PHONE",
+   "pattern": "\\b(?:telepon|telp|tel|phone|ponsel|whatsapp|WA|HP|nomernya|nopeny[ae]?|kontakx?|contact\\s+number|nomor\\s+(?:hp|telepon|ponsel|wa|kontak)|hubungi(?:\\s+(?:kami|saya|kita))?\\s+di|dihubungi(?:\\s+di)?|di\\s+nomor|calling|call)\\b\\.?(?:\\s+(?:number|no\\.?|nomor))?\\s*(?:[:#=]\\s*)?\\(?\\s*(\\+?\\(?\\d[\\d\\s().-]{5,18}\\d)",
+   "group": 1,
+   "validator": "phone_any",
+   "flags": "i"
+  },
+  {
+   "id": "phone_plus",
+   "type": "PHONE",
+   "pattern": "(?<![\\w+])\\+\\d{1,3}[\\s.-]?\\(?\\d[\\d\\s().-]{5,16}\\d",
+   "validator": "phone_any"
+  },
+  {
+   "id": "dob_labelled",
+   "type": "DOB",
+   "pattern": "\\b(?:tanggal\\s+lahir|tgl\\.?\\s*lahir|TTL|tempat(?:\\s*[&/,]\\s*|\\s+dan\\s+)tanggal\\s+lahir|lahir(?:nya|mu)?(?:\\s+(?:pada|tanggal|tgl\\.?))?|date\\s+of\\s+birth|DOB|birth\\s*date|born(?:\\s+on)?)\\b\\s*\\??[ \\t]*(?:\\n[^:\\n]{1,30}:)?\\s*[:]?\\s*(?:[A-Za-z][A-Za-z .'-]{1,30},\\s*)?(\\d{1,2}[-/.]\\d{1,2}[-/.](?:\\d{4}|\\d{2})|\\d{4}-\\d{2}-\\d{2}|\\d{1,2}\\s+(?:januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember|january|february|march|may|june|july|august|october|december|jan|feb|mar|apr|jun|jul|agu|agt|aug|sep|sept|okt|oct|nov|des|dec)\\.?\\s+\\d{4})",
+   "group": 1,
+   "flags": "i"
+  },
+  {
+   "id": "postal_labelled",
+   "type": "ADDRESS",
+   "pattern": "\\b(?:kode\\s+pos|postal\\s+code|zip(?:\\s+code)?|postcode)\\s*[:]?\\s*(\\d{5})\\b",
+   "group": 1,
+   "flags": "i"
+  },
+  {
    "id": "address_id",
    "type": "ADDRESS",
-   "pattern": "\\b(?:(?:[Jj]l|JL|[Jj]ln|JLN)\\.?\\s+(?:[A-Za-z][\\w'.-]*\\s+){1,5}?(?:(?:[Nn]o|NO|[Nn]omor|[Bb]lok|BLOK|[Kk]av|KAV|[Kk]m|KM)\\.?\\s*[A-Za-z]{0,2}[/-]?\\d+[A-Za-z]?(?:/\\d+[A-Za-z]?)?|\\d{1,3}[A-Za-z]?)|(?:Jalan|JALAN|[Pp]erumahan|[Pp]erum|[Kk]ompleks|[Kk]omplek|[Kk]omp|[Gg]g|[Gg]ang|[Aa]partemen|[Rr]uko)\\.?\\s+(?:[A-Za-z][\\w'.-]*\\s+){1,5}?(?:[Nn]o|NO|[Nn]omor|[Bb]lok|BLOK|[Kk]av|KAV|[Kk]m|KM)\\.?\\s*[A-Za-z]{0,2}[/-]?\\d+[A-Za-z]?(?:/\\d+[A-Za-z]?)?)\\b(?:\\s*,?\\s*(?:[Nn]o|NO|[Nn]omor|[Bb]lok|BLOK|[Kk]av|KAV|[Kk]m|KM)\\.?\\s*[A-Za-z]{0,2}[/-]?\\d+[A-Za-z]?(?:/\\d+[A-Za-z]?)?\\b)*(?:\\s*,?\\s*RT\\.?\\s*\\d{1,3}\\s*/\\s*RW\\.?\\s*\\d{1,3})?"
+   "pattern": "\\b(?:(?:[Jj]l|JL|[Jj]ln|JLN)\\s?\\.?\\s+(?:[A-Za-z][\\w'.-]*\\s+){1,5}?(?:(?:[Nn]o|NO|[Nn]omor|[Bb]lok|BLOK|[Kk]av|KAV|[Kk]m|KM)\\.?\\s*(?:[A-Za-z]{1,2}\\s?)?[/-]?\\d+[A-Za-z]?(?:/\\d+[A-Za-z]?)?|\\d{1,3}[A-Za-z]?)|(?:Jalan|JALAN|jalan|[Pp]erumahan|[Pp]erum|[Kk]ompleks|[Kk]omplek|[Kk]omp|[Gg]g|[Gg]ang|[Aa]partemen|[Rr]uko)\\.?\\s+(?:[A-Za-z][\\w'.-]*\\s+){1,5}?(?:[Nn]o|NO|[Nn]omor|[Bb]lok|BLOK|[Kk]av|KAV|[Kk]m|KM)\\.?\\s*(?:[A-Za-z]{1,2}\\s?)?[/-]?\\d+[A-Za-z]?(?:/\\d+[A-Za-z]?)?)\\b(?:\\s*,?\\s*(?:[Nn]o|NO|[Nn]omor|[Bb]lok|BLOK|[Kk]av|KAV|[Kk]m|KM)\\.?\\s*(?:[A-Za-z]{1,2}\\s?)?[/-]?\\d+[A-Za-z]?(?:/\\d+[A-Za-z]?)?\\b)*(?:\\s*,?\\s*RT\\.?\\s*\\d{1,3}\\s*/\\s*RW\\.?\\s*\\d{1,3})?"
+  },
+  {
+   "id": "address_jalan",
+   "type": "ADDRESS",
+   "pattern": "\\b(?:Jalan|JALAN)\\s+[A-Z][\\w'.-]*(?:\\s+[A-Z][\\w'.-]*){0,4}\\s+\\d{1,4}[A-Za-z]?\\b"
+  },
+  {
+   "id": "address_gang",
+   "type": "ADDRESS",
+   "pattern": "\\b(?:[Gg]ang|[Gg]g|GG|[Jj]alan|JALAN|[Jj]l|JL)\\s?\\.?\\s+(?:[A-Za-z][\\w'.-]*\\s+){1,4}?[IVX]{1,4}\\s*/\\s*\\d+[A-Za-z]?\\b"
+  },
+  {
+   "id": "address_unit",
+   "type": "ADDRESS",
+   "pattern": "\\b(?i:kelurahan|kel|desa|ds|dusun|dsn)\\.?\\s+(?!(?:RT|RW|Rt|Rw)\\b)[A-Z][\\w'-]*(?:\\s+(?!(?:RT|RW|Rt|Rw)\\b)[A-Z][\\w'-]*){0,2}"
+  },
+  {
+   "id": "address_resident",
+   "type": "ADDRESS",
+   "pattern": "\\b(?:warga|beralamat(?:\\s+di)?|berdomisili\\s+di|bertempat\\s+tinggal\\s+di|sekarang\\s+di|pindah\\s+ke)\\s+((?!(?:RT|RW|Rt|Rw)\\b)[A-Z][\\w'-]*(?:\\s+(?:(?!(?:RT|RW|Rt|Rw)\\b)[A-Z][\\w'-]*|\\d{1,4}[A-Za-z]?)){0,4})",
+   "group": 1
+  },
+  {
+   "id": "address_labelled",
+   "type": "ADDRESS",
+   "pattern": "(?im:^[ \\t>*-]*(?:alamat|address|domisili)(?:[ \\t]+(?:tinggal|domisili|rumah|lengkap|KTP|surat|kantor|sekarang|asal|sesuai[ \\t]+KTP))?[ \\t]*:[ \\t]*([^\\n;]{5,160}))",
+   "group": 1,
+   "validator": "address_line"
   },
   {
    "id": "address_village",
@@ -172,7 +284,7 @@
   {
    "id": "phone_id",
    "type": "PHONE",
-   "pattern": "(?:\\+62[\\s.-]?|\\b62[\\s.-]?|\\b0)8[1-9]\\d{0,2}(?:[\\s.-]?\\d{2,5}){1,4}\\b",
+   "pattern": "(?:\\+62[\\s.-]?|\\b62[\\s.-]?|\\b0)8[\\s.-]?[1-9]\\d{0,2}(?:[\\s.-]?\\d{1,5}){1,5}\\b",
    "validator": "phone_id",
    "_comment": "Indonesian mobile numbers: 08.., +62 8.., 62 8.., grouped with spaces, dots or dashes. The check counts 10-13 digits once written with a leading 0."
   },
@@ -180,7 +292,7 @@
    "id": "bank_account_labelled",
    "type": "BANK",
    "_comment": "A bank account or virtual account number after its label (no. rek., rekening, norek, account no., a/c, VA), with up to three words between them (rek gaji Mandiri, rekening BSI nomor). Bare 9-17 digit numbers are too common to mask without the label.",
-   "pattern": "\\b(?:no(?:mor)?\\.?\\s*)?(?:rek(?:ening)?|acc(?:oun)?t(?:\\s*(?:no|number))?|a/c|VA|virtual\\s+account)\\b\\.?(?:\\s+(?!\\d)[A-Za-z][\\w/.()-]*){0,3}?\\s*[:.]?\\s*(\\d[\\d -]{7,20}\\d)\\b",
+   "pattern": "\\b(?:no(?:mor)?\\.?\\s*)?(?:rek(?:ening)?(?:nya|mu|ku)?|acc(?:oun)?t(?:\\s*(?:no|number))?|a/c|VA|virtual\\s+account)\\b\\.?(?:\\s+(?!\\d)[A-Za-z][\\w/.()-]*){0,3}?\\s*[:.]?\\s*(\\d[\\d -]{6,20}\\d)\\b",
    "flags": "i",
    "group": 1,
    "validator": "bank_account"

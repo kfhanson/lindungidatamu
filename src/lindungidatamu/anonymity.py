@@ -317,7 +317,8 @@ class Plan:
 
 
 def suggest(columns: dict[str, list], hierarchies: dict[str, str], *, k: int = 5, max_suppress: float = 0.01,
-            person: str | None = None, keep_value: tuple[str, ...] = (), limit: dict[str, str] | None = None) -> Plan:
+            person: str | None = None, keep_value: tuple[str, ...] = (), limit: dict[str, str] | None = None,
+            max_nodes: int = 3000) -> Plan:
     """The least generalisation that reaches k, suppressing at most `max_suppress` of the rows.
 
     Levels are searched from the least general up. A combination that reaches k makes every more general
@@ -326,6 +327,10 @@ def suggest(columns: dict[str, list], hierarchies: dict[str, str], *, k: int = 5
     than birth date -> *), plus the share of rows suppressed.
     keep_value  columns that must stay as they are
     limit       column -> the most general level allowed ({"birth_date": "5 years"})
+    max_nodes   above this many combinations (many quasi-identifiers), a greedy search instead:
+                step up the column that removes the most risk per information lost, until k is
+                reached, then step back down wherever k still holds. Not always the least loss, but
+                minimal: no column can be made more precise without breaking k
     """
     quasi = list(hierarchies)
     n = max((len(v) for v in columns.values()), default=0)
@@ -348,18 +353,26 @@ def suggest(columns: dict[str, list], hierarchies: dict[str, str], *, k: int = 5
             raise ValueError(f"limit {c}={lvl}: not a quasi-identifier, or not a level of its hierarchy")
     caps = [LEVELS[hierarchies[c]].index(most[c]) if c in most else t for c, t in zip(quasi, tops)]
     ranges = [range(cap + 1) for cap in caps]
-    nodes = sorted(itertools.product(*ranges), key=lambda x: (sum(x), x))
     found: list[tuple] = []
     results = []
     tried = 0
+    seen: dict[tuple, int] = {}
 
     def below(node) -> int:
-        _, sizes = _group([enc[c][lvl] for c, lvl in zip(quasi, node)], owners)
-        return _below(sizes, k)
+        node = tuple(node)
+        if node not in seen:
+            _, sizes = _group([enc[c][lvl] for c, lvl in zip(quasi, node)], owners)
+            seen[node] = _below(sizes, k)
+        return seen[node]
 
     def loss(node, b) -> float:
         return round(sum(lost[c][lvl] for c, lvl in zip(quasi, node)) / len(quasi) + b / max(n, 1), 4)
 
+    name = lambda nd: {c: LEVELS[hierarchies[c]][lvl] for c, lvl in zip(quasi, nd)}
+    share = lambda nd: {c: lost[c][lvl] for c, lvl in zip(quasi, nd)}
+    if math.prod(len(r) for r in ranges) > max_nodes:
+        return _greedy(quasi, caps, lost, below, loss, budget, k, hierarchies, name, share)
+    nodes = sorted(itertools.product(*ranges), key=lambda x: (sum(x), x))
     for node in nodes:
         if any(all(a >= b for a, b in zip(node, f)) for f in found):
             continue                           # more general than a plan that already works
@@ -368,8 +381,6 @@ def suggest(columns: dict[str, list], hierarchies: dict[str, str], *, k: int = 5
         if b <= budget:
             found.append(node)
             results.append((loss(node, b), b, node))
-    name = lambda nd: {c: LEVELS[hierarchies[c]][lvl] for c, lvl in zip(quasi, nd)}
-    share = lambda nd: {c: lost[c][lvl] for c, lvl in zip(quasi, nd)}
     if not results:
         node = tuple(caps)
         b = below(node)
@@ -379,6 +390,41 @@ def suggest(columns: dict[str, list], hierarchies: dict[str, str], *, k: int = 5
     return Plan(name(node), dict(hierarchies), k, b, best, True, tried, share(node),
                 [{"loss": l_, "levels": name(nd), "lost": share(nd), "rows_suppressed": b_}
                  for l_, b_, nd in results[1:6]])
+
+
+def _greedy(quasi, caps, lost, below, loss, budget, k, hierarchies, name, share) -> Plan:
+    node = [0] * len(quasi)
+    b = below(node)
+    tried = 1
+    while b > budget:
+        best = None
+        for i, c in enumerate(quasi):
+            if node[i] >= caps[i]:
+                continue
+            cand = node.copy()
+            cand[i] += 1
+            bc = below(cand)
+            tried += 1
+            cost = lost[c][cand[i]] - lost[c][node[i]] + 1e-6
+            score = ((b - bc) / cost, -cost)
+            if best is None or score > best[0]:
+                best = (score, cand, bc)
+        if best is None:                 # every column fully generalised
+            break
+        _, node, b = best
+    reached = b <= budget
+    if reached:
+        # Back down: make each column as precise as k allows, most information-costly first.
+        for i in sorted(range(len(quasi)), key=lambda i: -lost[quasi[i]][node[i]]):
+            while node[i] > 0:
+                cand = node.copy()
+                cand[i] -= 1
+                bc = below(cand)
+                tried += 1
+                if bc > budget:
+                    break
+                node, b = cand, bc
+    return Plan(name(node), dict(hierarchies), k, b, loss(node, b), reached, tried, share(node))
 
 
 def apply(columns: dict[str, list], levels: dict[str, str], hierarchies: dict[str, str], *, k: int = 5,

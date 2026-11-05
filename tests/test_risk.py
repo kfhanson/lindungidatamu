@@ -184,3 +184,21 @@ def test_limit_keeps_what_the_analysis_needs():
         an.suggest(t, h, limit={"birth_date": "kabupaten"})
     r = risk(t, keep={"birth_date": "year"})
     assert r.policy["birth_date"].generalize in (None, "month", "year")
+
+
+def test_old_policy_without_roles_gets_them():
+    t = claims(300)
+    old = {c: Rule(r.action, r.type, r.reason) for c, r in profile(t).items()}
+    r = risk(t, old)
+    assert r.policy["birth_date"].role == "quasi" and r.policy["member_no"].action == "tokenize"
+
+
+def test_greedy_search_for_many_columns():
+    t = claims()
+    h = {"birth_date": "date", "sex": "sex", "kelurahan": "wilayah", "admitted": "date"}
+    exact = an.suggest(t, h, k=5, person="member_no")
+    greedy = an.suggest(t, h, k=5, person="member_no", max_nodes=10)
+    assert greedy.reached and greedy.rows_suppressed <= 0.01 * len(t["member_no"])
+    assert greedy.loss <= exact.loss + 0.25          # close to the exhaustive answer
+    done, suppressed = an.apply(t, greedy.levels, h, k=5, person="member_no")
+    assert an.measure(done, list(h), k=5, person="member_no", skip=suppressed)["k"] >= 5
