@@ -1,6 +1,7 @@
 import datetime as dt
 import json
 import random
+import re
 
 import pytest
 
@@ -143,7 +144,13 @@ def test_risk_then_mask_applies_the_plan():
     else:
         assert all(v == "*" or "-" in v for v in born)
     assert all(str(m).startswith("[") for m in done.columns["member_no"])
-    assert done.columns["amount_paid"] == t["amount_paid"]          # analysis columns untouched
+    # Amounts: only the highest are pooled (into their mean, so the total stays), the rest untouched.
+    tc = done.report["top_coded"]["amount_paid"]
+    assert tc == r.top_coded["amount_paid"] | {"replaced_by": tc["replaced_by"]}
+    paid = done.columns["amount_paid"]
+    assert sum(a != b for a, b in zip(paid, t["amount_paid"])) <= tc["rows"]
+    assert abs(sum(paid) - sum(t["amount_paid"])) <= tc["rows"]
+    assert tc["rows"] >= 5 and tc["rows"] <= 0.01 * len(paid)
 
 
 def test_mask_table_measures_without_changing_when_nothing_generalised():
@@ -203,7 +210,7 @@ def test_greedy_search_for_many_columns():
     exact = an.suggest(t, h, k=5, person="member_no")
     greedy = an.suggest(t, h, k=5, person="member_no", max_nodes=10)
     assert greedy.reached and greedy.rows_suppressed <= 0.01 * len(t["member_no"])
-    assert greedy.loss <= exact.loss + 0.25          # close to the exhaustive answer
+    assert greedy.loss <= exact.loss + 0.01          # the beam and local moves find (nearly) the best
     done, suppressed = an.apply(t, greedy.levels, h, k=5, person="member_no")
     assert an.measure(done, list(h), k=5, person="member_no", skip=suppressed)["k"] >= 5
 
@@ -291,3 +298,192 @@ def test_cli_risk_intervals_and_l(tmp_path, capsys):
     assert main(["mask", str(src)]) == 0
     report = json.loads((tmp_path / "stays.masked.report.json").read_text())
     assert report["risk"]["after"]["sensitive"]["diagnosis"]["l"] >= 2
+
+
+def test_fast_count_matches_plain_grouping():
+    np = pytest.importorskip("numpy")
+    t = stays(400)
+    h = {"birth_date": "date", "sex": "sex", "kelurahan": "wilayah", "admitted": "date", "discharged": "date"}
+    enc = {c: [np.asarray(an._codes(an.generalize(t[c], h[c], lvl)), dtype=np.int64) for lvl in an.LEVELS[h[c]]]
+           for c in h}
+    owners = np.asarray(an._codes(t["member_no"]), dtype=np.int64)
+    sens = [np.asarray(an._codes(t["diagnosis"]), dtype=np.int64)]
+    rng = random.Random(0)
+    for l in (1, 2, 3):
+        fast = an._Counter(enc, list(h), owners, sens, 5, l)
+        for _ in range(25):
+            node = tuple(rng.randrange(len(an.LEVELS[h[c]])) for c in h)
+            key, sizes = an._group([enc[c][x] for c, x in zip(h, node)], owners)
+            assert fast(node) == an._count(an._failing(key, sizes, 5, sens, l)), (l, node)
+        rows = an._Counter(enc, list(h), None, sens, 5, l)          # counting rows, not people
+        node = (1, 0, 2, 1, 1)
+        key, sizes = an._group([enc[c][x] for c, x in zip(h, node)])
+        assert rows(node) == an._count(an._failing(key, sizes, 5, sens, l))
+
+
+# Not only claims: an employee table and a customer table.
+
+def employees(n: int = 2000, seed: int = 11) -> dict[str, list]:
+    rng = random.Random(seed)
+    kec = [f"{p}.{k:02d}.{c:02d}" for p in (31, 32, 33, 35) for k in (1, 2, 71, 72) for c in range(1, 9)]
+    w = [rng.paretovariate(1.3) for _ in kec]
+    jobs = ["Staff", "Staff", "Staff", "Supervisor", "Manager", "Senior Manager", "Direktur"]
+    cols = {c: [] for c in ("emp_id", "tanggal_lahir", "jenis_kelamin", "kode_kecamatan", "tanggal_masuk", "jabatan",
+                            "gaji", "catatan")}
+    for i in range(n):
+        born = dt.date(1960, 1, 1) + dt.timedelta(days=rng.randrange(40 * 365))
+        hired = max(born + dt.timedelta(days=20 * 365), dt.date(1995, 1, 1)) + dt.timedelta(days=rng.randrange(3000))
+        job = rng.choice(jobs)
+        pay = {"Staff": 6, "Supervisor": 11, "Manager": 22, "Senior Manager": 40, "Direktur": 150}[job]
+        cols["emp_id"].append(f"EMP-{i:05d}")
+        cols["tanggal_lahir"].append(born)
+        cols["jenis_kelamin"].append(rng.choice("LP"))
+        cols["kode_kecamatan"].append(rng.choices(kec, w)[0])
+        cols["tanggal_masuk"].append(hired)
+        cols["jabatan"].append(job)
+        cols["gaji"].append(int(pay * rng.uniform(0.8, 1.6) * 1_000_000))
+        age = (dt.date(2024, 6, 1) - born).days // 365
+        cols["catatan"].append(rng.choice([f"Karyawan {age} tahun, cuti sakit {rng.randint(1, 28)} Mei 2024.",
+                                           "Tidak ada catatan.", f"Sudah bekerja {rng.randint(1, 20)} tahun di unit ini.",
+                                           f"Promosi pada {hired.day} {['Januari', 'Maret', 'Juli'][i % 3]} 2023"]))
+    return cols
+
+
+def test_employee_table():
+    t = employees()
+    p = profile(t)
+    assert p["emp_id"].type == "EMPLOYEE" and p["jabatan"].role == "quasi" and p["kode_kecamatan"].hierarchy == "wilayah"
+    r = risk(t, k=5)
+    assert r.person == "emp_id" and r.before["k"] == 1 and r.plan.reached and r.after["k"] >= 5
+    assert r.intervals["tanggal_lahir"] == {"relative_to": "tanggal_masuk", "interval": "age"}
+    assert "gaji" in r.top_coded and "catatan" in r.text_quasi
+    done = mask_table(t, r.policy, k=5)
+    assert abs(sum(done.columns["gaji"]) - sum(t["gaji"])) <= r.top_coded["gaji"]["rows"]
+    assert max(done.columns["gaji"]) < max(t["gaji"])                          # the director's pay is pooled
+    notes = " ".join(done.columns["catatan"])
+    assert " Mei 2024" not in notes and "Karyawan 4" not in notes or "-" in notes
+    assert all(not re.search(r"Karyawan \d+ tahun", x) for x in done.columns["catatan"])
+    assert any(re.search(r"bekerja \d+ tahun", x) for x in done.columns["catatan"])   # durations stay
+    assert done.report["columns"]["catatan"]["quasi_in_text"]["age"] > 0
+
+
+def test_customer_table():
+    rng = random.Random(5)
+    n = 1500
+    signed = [dt.date(2020, 1, 1) + dt.timedelta(days=rng.randrange(1500)) for _ in range(n)]
+    t = {"customer_no": [f"C{i:07d}" for i in range(n)],
+         "email": [f"user{i}@contoh.co.id" for i in range(n)],
+         "usia": [rng.randint(18, 75) for _ in range(n)],
+         "kode_pos": [f"{rng.choice(['161', '164', '402', '601', '802'])}{rng.randint(10, 99)}" for _ in range(n)],
+         "tgl_daftar": signed,
+         "tgl_order_terakhir": [d + dt.timedelta(days=rng.randrange(400)) for d in signed],
+         "total_belanja": [int(rng.paretovariate(1.5) * 250_000) for _ in range(n)]}
+    p = profile(t)
+    assert p["customer_no"].type == "CUSTOMER" and (p["usia"].role, p["usia"].hierarchy) == ("quasi", "age")
+    assert p["kode_pos"].hierarchy == "postal"
+    r = risk(t, k=5)
+    assert r.person == "customer_no" and r.plan.reached and r.after["k"] >= 5
+    assert r.intervals == {"tgl_order_terakhir": {"relative_to": "tgl_daftar", "interval": "days"}}
+    assert "total_belanja" in r.top_coded
+
+
+def test_text_quasi():
+    tq = an.text_quasi
+    assert tq("Pasien laki-laki 45 tahun, dirawat 3 Feb 2024, pulang 07/02/2024.") == \
+        ("Pasien laki-laki 40-49 tahun, dirawat 2024, pulang 2024.", {"date": 2, "age": 1})
+    assert tq("usia: 61 thn; kontrol 12 Maret")[0] == "usia: 60-69 thn; kontrol [DATE]"
+    for keep in ("sudah 3 tahun lalu sakit", "bekerja 5 tahun di sana", "selama 2 tahun", "Total Rp 1.250.000, 3 orang"):
+        assert tq(keep) == (keep, {"date": 0, "age": 0}), keep
+    assert tq("a 34yo male seen on March 3, 2024")[0] == "a 30-39yo male seen on 2024"
+
+
+def test_top_code():
+    vals = list(range(1000)) + [10 ** 9]
+    t, mean, rows = an.top_code(vals, k=5)
+    assert rows >= 5 and t <= 995 and mean == round(sum(v for v in vals if v >= t) / rows)
+    out, n, m = an.apply_top_code(vals, t)
+    assert n == rows and sum(out) == pytest.approx(sum(vals), abs=rows) and max(out) == m
+    assert an.top_code([5] * 100, k=5) is None                     # no spread at the top
+    # The tail holds at least k people, not k rows of one person.
+    owners = ["a"] * 6 + [f"p{i}" for i in range(994)]
+    t2, _, rows2 = an.top_code(list(range(1000, 994, -1)) + list(range(994)), k=5, owners=owners)
+    assert rows2 >= 10
+
+
+def test_review_page_measures_the_whole_table():
+    from lindungidatamu.review import build
+    t = employees(800)
+    r = risk(t, k=5)
+    page = build(t, r.policy, file_name="employees.csv", rows=50, k=5)
+    data = json.loads(page.split('<script id="data" type="application/json">', 1)[1].split("</script>", 1)[0])
+    assert data["risk"]["after"]["rows"] + data["risk"]["after"].get("suppressed_rows", 0) == 800
+    assert data["risk"]["after"]["k"] >= 5 and "gaji" in data["risk"]["top_coded"]
+    assert data["risk"]["columns"]["tanggal_lahir"]["relative_to"] == "tanggal_masuk"
+    assert any(e["type"] == "GENERALIZED" for row in data["rows"] for e in row["ents"])
+
+
+def test_cli_keep_by_label(tmp_path, capsys):
+    pytest.importorskip("pandas")
+    from lindungidatamu.cli import main
+    import pandas as pd
+    src = tmp_path / "emp.csv"
+    pd.DataFrame(employees(600)).to_csv(src, index=False)
+    # C2 is tanggal_lahir: kept to the year, so it stays a date and the others give way.
+    assert main(["risk", str(src), "--hide-columns", "--keep", "C2=year"]) == 0
+    out = capsys.readouterr().out
+    assert "Large amounts single people out" in out and "Dates and ages inside text" in out
+    doc = json.loads((tmp_path / "emp.policy.json").read_text())
+    assert doc["columns"]["tanggal_lahir"].get("relative_to") is None
+    assert doc["columns"]["tanggal_lahir"].get("generalize") in (None, "month", "year")
+    assert doc["columns"]["gaji"]["top_code"] > 0 and doc["columns"]["catatan"]["text_quasi"] is True
+
+
+def test_area_names():
+    from lindungidatamu import wilayah
+    depok = ["Cinere", "Kec. Beji", "Sukmajaya, Depok", "KECAMATAN PANCORAN MAS", "Limo", "Sawangan", "Cipayung"]
+    areas = wilayah.Areas(depok * 3)
+    assert [areas.generalize(v, "kabupaten") for v in depok] == ["Kota Depok"] * len(depok)
+    assert {areas.generalize(v, "provinsi") for v in depok} == {"Jawa Barat"}
+    assert areas.generalize("Kec. Beji", "kecamatan") == "Beji"
+    # shared names: settled by a parent after a comma, or kept only as far as the candidates agree
+    assert wilayah.candidates("Beji, Kab. Pasuruan") == ["35.14.13"]
+    kab = wilayah.Areas(["Kab. Bogor", "Kota Bogor", "Bogor", "Jakarta Pusat", "Banjar", "Kota Malang", "Xyz"])
+    assert kab.generalize("Kab. Bogor", "kabupaten") == "Kabupaten Bogor"
+    assert kab.generalize("Bogor", "kabupaten") == "Bogor" and kab.generalize("Bogor", "provinsi") == "Jawa Barat"
+    assert kab.generalize("Jakarta Pusat", "kabupaten") == "Kota Administrasi Jakarta Pusat"
+    # Kota Banjar (Jawa Barat) or Kabupaten Banjar (Kalimantan Selatan): half this column is in Jawa Barat
+    assert kab.generalize("Banjar", "kabupaten") == "Kota Banjar"
+    spread = wilayah.Areas(["Banjar", "Kota Malang", "Jakarta Pusat", "Kota Medan"])
+    assert spread.generalize("Banjar", "kabupaten") == "Banjar" and spread.generalize("Banjar", "provinsi") == "other"
+    assert kab.generalize("Xyz", "kabupaten") == "other"
+    prov = ["DKI Jakarta", "Jabar", "Prov. Jawa Timur", "DIY", "NTT", "Gorontalo"]
+    assert wilayah.Areas(prov).generalize("Jabar", "provinsi") == "Jawa Barat"
+    assert [wilayah.Areas(prov).generalize(v, "provinsi") for v in ("DIY", "Gorontalo")] == \
+        ["Daerah Istimewa Yogyakarta", "Gorontalo"]
+    for word in ("L", "P", "Laki-laki", "Perempuan", "Rawat Inap", "Umum", "BPJS", "Menikah", "Staff"):
+        assert not wilayah.candidates(word), word
+    assert an.guess_hierarchy(depok * 3) == "wilayah" and an.guess_hierarchy(["L", "P"] * 9) == "sex"
+    # codes and names in one column; empty stays empty
+    assert an.generalize(["Cinere", "32.76.01.1001", None], "wilayah", "kabupaten") == ["Kota Depok", "32.76", None]
+
+
+def test_area_names_table():
+    rng = random.Random(9)
+    kec = ["Cinere", "Beji", "Sawangan", "Cipayung", "Tapos", "Cibinong", "Citeureup", "Jonggol", "Parung",
+           "Tebet", "Cilandak", "Jagakarsa", "Pasar Minggu"]
+    n = 1500
+    t = {"nik": [f"3276{rng.randrange(10**11, 10**12)}" for _ in range(n)],
+         "kecamatan": [rng.choice(kec) for _ in range(n)],
+         "usia": [rng.randint(18, 70) for _ in range(n)],
+         "jenis_kelamin": [rng.choice("LP") for _ in range(n)]}
+    p = profile(t)
+    assert (p["kecamatan"].role, p["kecamatan"].hierarchy) == ("quasi", "wilayah")
+    out = an.generalize(t["kecamatan"], "wilayah", "kabupaten")
+    assert set(out) == {"Kota Depok", "Kabupaten Bogor", "Kota Administrasi Jakarta Selatan", "other"}
+    at = lambda name: out[t["kecamatan"].index(name)]
+    # Beji is also in Pasuruan (Jawa Timur), which nothing else in the column is near: Depok
+    assert at("Beji") == "Kota Depok"
+    # Cipayung is also in Jakarta Timur, and a third of the column is in Jakarta: not guessed
+    assert at("Cipayung") == "other"
+    r = risk(t, k=5)
+    assert r.plan.reached and r.after["k"] >= 5

@@ -6,6 +6,8 @@
     lindungidatamu restore findings.md --vault claims.vault.json   # real values back, exact placeholders only
     lindungidatamu review claims.parquet             # writes claims.review.html: check the masking by eye
     lindungidatamu risk claims.parquet               # can rows still be singled out? writes the fix into the policy
+    lindungidatamu serve claims.parquet              # an MCP server: an AI client asks, gets gated aggregates only
+    lindungidatamu ask claims.parquet '{"group_by": ["sex"], "measures": ["people"]}'   # one gated question
 
 Masking is one-way unless you ask for a vault. Add --names to use the name model for people and
 organisations in text (pip install "lindungidatamu[names]"). Tables need pip install "lindungidatamu[files]".
@@ -172,18 +174,26 @@ def cmd_risk(a) -> int:
         label(c)
     keep = dict((x.split("=", 1) + ["value"])[:2] for x in a.keep)
     keep = {c.strip(): lvl.strip() for c, lvl in keep.items()}
+    if a.hide_columns:                                    # --keep C14 means the 14th column
+        by_label = {label(c): c for c in columns}
+        keep = {by_label.get(c, c): lvl for c, lvl in keep.items()}
     unknown = [c for c in keep if c not in columns]
     if unknown:
         _say(f"--keep: no column {', '.join(unknown)}")
         return 1
     try:
         result = risk(columns, policy, k=a.k, max_suppress=a.max_suppress, keep=keep, l=a.l,
-                      intervals=not a.no_intervals)
+                      intervals=not a.no_intervals, top_share=a.top_code, sample=a.sample)
     except ValueError as e:
         _say(f"--keep: {e}")
         return 1
     quasi = result.before.get("quasi", [])
+    extra = _extras(result, label)
     if not quasi:
+        if extra:
+            _say(extra)
+            save_policy(result.policy, policy_path, **settings,
+                        risk={"k": a.k, "max_suppress": a.max_suppress, "person": result.person})
         _say("No quasi-identifiers (birth date, sex, area, dates...) in the policy. Mark columns with "
              '"role": "quasi" in the policy to measure them.')
         return 0
@@ -211,6 +221,8 @@ def cmd_risk(a) -> int:
         if c in result.intervals:
             h = f"{'age at' if h == 'age' else 'days from'} {label(result.intervals[c]['relative_to'])}"
         _say(f"| {label(c)} | {h} | {lvl} | {_pct(1 - plan.lost.get(c, 0))} |")
+    _say(f"\nInformation lost overall: {plan.loss:.3f} (0 = none, 1 = all; the mean over columns, plus the share "
+         f"of rows suppressed); {plan.tried:,} combinations checked")
     if plan.reached and plan.candidates:
         _say("\nOther ways to reach it (choose one with --keep COLUMN, or edit the policy):")
         for alt in plan.candidates[:3]:
@@ -223,11 +235,26 @@ def cmd_risk(a) -> int:
     _say(f"\nAfter: {_risk_line(result.after)}")
     for c, s in (result.after.get("sensitive") or {}).items():
         _say(f"       {label(c)} (sensitive): l = {s['l']}; {s['groups_one_value']:,} groups share one value")
+    if extra:
+        _say(extra)
     save_policy(result.policy, policy_path, **settings,
                 risk={"k": a.k, **({"l": a.l} if a.l > 1 else {}), "max_suppress": a.max_suppress,
                       "person": result.person})
     _say(f"\npolicy: {policy_path} (generalize levels and intervals written; change any, then: lindungidatamu mask {path.name})")
     return 0
+
+
+def _extras(result, label) -> str:
+    lines = []
+    for c, t in result.top_coded.items():
+        lines.append(f"  {label(c)}: the {t['rows']:,} values at or above {t['at_or_above']:,.0f} become their mean "
+                     f"({t['replaced_by']:,.0f}), so totals stay")
+    if lines:
+        lines.insert(0, "\nLarge amounts single people out (--top-code 0 to leave them):")
+    if result.text_quasi:
+        lines.append("\nDates and ages inside text (dates -> year, ages -> 10-year band, when masking):")
+        lines += [f"  {label(c)}: in {_pct(v)} of a sample" for c, v in result.text_quasi.items()]
+    return "\n".join(lines)
 
 
 def _hide(report: dict, label) -> dict:
@@ -257,6 +284,8 @@ def _hide(report: dict, label) -> dict:
                      "intervals": {label(c): {**v, "relative_to": label(v["relative_to"])}
                                    for c, v in (rk.get("intervals") or {}).items()},
                      "generalized": {label(c): v for c, v in rk["generalized"].items()}}
+    if "top_coded" in report:
+        r["top_coded"] = {label(c): v for c, v in report["top_coded"].items()}
     return r
 
 
@@ -296,8 +325,54 @@ def cmd_review(a) -> int:
     policy_path = Path(a.policy) if a.policy else _beside(path, "policy", ".json")
     policy = load_policy(policy_path) if policy_path.exists() else profile(columns, names=names)
     out = Path(a.out) if a.out else _beside(path, "review", ".html")
-    write(out, build(columns, policy, file_name=path.name, rows=a.rows, names=names))
+    settings = {}
+    if policy_path.exists():
+        from .table import load_settings
+        settings = load_settings(policy_path).get("risk") or {}
+    write(out, build(columns, policy, file_name=path.name, rows=a.rows, names=names, k=settings.get("k"),
+                     l=settings.get("l") or 1, person=settings.get("person")))
     _say(f"review: {out}\nOpen it in your browser. It holds the real values: keep it on this machine.")
+    return 0
+
+
+def _analysis(a):
+    from .analysis import Analysis
+    from .table import load_policy, load_settings
+    path = Path(a.file)
+    policy_path = Path(a.policy) if a.policy else _beside(path, "policy", ".json")
+    policy, k = None, a.k
+    if policy_path.exists():
+        policy = load_policy(policy_path)
+        k = k or (load_settings(policy_path).get("risk") or {}).get("k")
+    state = Path(a.state) if a.state else path.with_name(f"{path.stem}.analysis")
+    print(f"policy: {policy_path if policy else 'none, profiling the table'}; state: {state}", file=sys.stderr)
+    return Analysis(path, policy, k=k or 5, state=state, max_groups=a.max_groups)
+
+
+def cmd_serve(a) -> int:
+    from .serve import run
+    analysis = _analysis(a)
+    print(f"serving {Path(a.file).name} over MCP (stdio): aggregates only, k = {analysis.k}", file=sys.stderr)
+    run(analysis)
+    return 0
+
+
+def cmd_ask(a) -> int:
+    from .analysis import QueryError
+    analysis = _analysis(a)
+    if a.query in ("describe", "-"):
+        _say(json.dumps(analysis.describe(), ensure_ascii=False, indent=1))
+        return 0
+    try:
+        q = json.loads(a.query)
+        _say(str(analysis.aggregate(group_by=q.get("group_by") or [], measures=q.get("measures") or ["people"],
+                                    where=q.get("where") or [])))
+    except (json.JSONDecodeError, AttributeError):
+        _say('the question is JSON: {"group_by": [...], "measures": [...], "where": [...]}, or "describe"')
+        return 1
+    except QueryError as e:
+        _say(f"not answered: {e}")
+        return 1
     return 0
 
 
@@ -349,13 +424,32 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--max-suppress", type=float, default=0.01, help="share of rows that may be suppressed (default 0.01)")
     p.add_argument("--keep", action="append", default=[], metavar="COLUMN[=LEVEL]",
                    help='what the analysis needs: a column as it is, or no coarser than a level '
-                        '("birth_date=5 years"); repeatable. A kept date stays a date')
+                        '("birth_date=5 years", or "C13=month" with --hide-columns); repeatable. A kept date '
+                        'stays a date')
     p.add_argument("--l", type=int, default=1, help="also need at least L different values of each sensitive "
                    "column in every group (default 1: off)")
+    p.add_argument("--top-code", type=float, default=0.005, metavar="SHARE",
+                   help="pool the highest SHARE of an amount column's values into their mean (default 0.005; 0: off)")
     p.add_argument("--no-intervals", action="store_true", help="keep dates as dates, not age / days from one anchor date")
     p.add_argument("--sample", type=int, default=2000, help="rows sampled per column when profiling (default 2000)")
     common(p, names=False)
     p.set_defaults(run=cmd_risk)
+
+    def gated(p):
+        p.add_argument("file")
+        p.add_argument("--policy", help="default: FILE.policy.json (profiled if missing)")
+        p.add_argument("--k", type=int, help="smallest group answered (default: the policy's risk k, else 5)")
+        p.add_argument("--state", help="the noise secret, groups answered and question log (default: FILE.analysis/)")
+        p.add_argument("--max-groups", type=int, default=500, help="most groups in one answer (default 500)")
+
+    p = sub.add_parser("serve", help="an MCP server (stdio): an AI client asks about the table, gets gated aggregates only")
+    gated(p)
+    p.set_defaults(run=cmd_serve)
+
+    p = sub.add_parser("ask", help="one gated aggregate question, as JSON (or \"describe\")")
+    gated(p)
+    p.add_argument("query", help='{"group_by": [...], "measures": [...], "where": [...]}, or "describe"')
+    p.set_defaults(run=cmd_ask)
 
     a = ap.parse_args(argv)
     try:

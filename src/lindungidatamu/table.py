@@ -19,7 +19,9 @@ A column can also have a role. `quasi` columns (birth date, sex, area, event dat
 data alone but can single someone out together; `sensitive` columns (a diagnosis) are what must not
 be learned about them. `generalize` steps a quasi column up its hierarchy (date -> month -> year ...);
 `relative_to` turns a date into an interval from another date column of the row (`interval`: "age",
-whole years to it, or "days" from it). See the anonymity module and `lindungidatamu risk`.
+whole years to it, or "days" from it). `top_code` pools a number column's highest values (at or above it)
+into their mean; `text_quasi` generalises dates and ages written inside a text column. See the
+anonymity module and `lindungidatamu risk`.
 
 Every text column is at least pattern-scanned, whatever its profile says: a column that looks like
 a category can still hold a NIK in a few rows.
@@ -59,6 +61,7 @@ TYPE_WORDS = [
     ("PHONE", {"phone", "hp", "telp", "telepon", "tel", "mobile", "wa", "whatsapp", "handphone", "msisdn"}),
     ("ADDRESS", {"address", "alamat", "street", "jalan", "domisili"}),
     ("MEMBER", {"member", "peserta", "participant", "insured", "tertanggung"}),
+    ("CUSTOMER", {"customer", "pelanggan", "nasabah", "konsumen", "client", "klien", "buyer", "pembeli"}),
     ("CARD", {"card", "kartu"}),
     ("POLICY", {"policy", "polis"}),
     ("CLAIM", {"claim", "klaim"}),
@@ -71,7 +74,9 @@ LABELLED = {"NIK": "NIK", "NPWP": "NPWP", "KK": "KK", "BPJS": "BPJS Kesehatan", 
 ID_WORDS = {"no", "nomor", "number", "num", "nr", "id", "ref", "reference", "code", "kode"}
 AMOUNT_WORDS = {"amount", "amt", "jumlah", "nominal", "billed", "bill", "paid", "bayar", "tagihan", "excess", "rate",
                 "tarif", "biaya", "cost", "price", "harga", "total", "sum", "fee", "premi", "premium", "qty",
-                "quantity", "count", "plafon", "limit", "saldo", "balance", "value", "nilai", "idr", "rp", "usd"}
+                "quantity", "count", "plafon", "limit", "saldo", "balance", "value", "nilai", "idr", "rp", "usd",
+                "gaji", "salary", "upah", "wage", "income", "pendapatan", "penghasilan", "omzet", "omset", "revenue",
+                "belanja", "spend", "spending", "transaksi", "transaction", "tunjangan", "bonus", "klaimamount"}
 PERSON_WORDS = {"nama", "name", "payee", "penerima", "holder", "pemegang", "beneficiary", "ahliwaris", "contact",
                 "kontak", "pic", "suami", "istri", "ayah", "ibu", "wali", "dokter", "doctor"}
 ORG_WORDS = {"provider", "faskes", "hospital", "rs", "rumahsakit", "klinik", "clinic", "company", "perusahaan",
@@ -84,14 +89,16 @@ QUASI_WORDS = [
     ("sex", {"sex", "gender", "jk", "kelamin", "jeniskelamin"}),
     ("postal", {"kodepos", "postal", "zip", "zipcode", "postcode"}),
     ("wilayah", {"kelurahan", "desa", "kecamatan", "kabupaten", "kab", "kota", "city", "provinsi", "propinsi",
-                 "province", "region", "wilayah", "district", "regency", "village", "kodewilayah", "area"}),
+                 "province", "region", "wilayah", "district", "regency", "village", "kodewilayah", "area",
+                 "domisili", "kec", "prov", "kabkota", "daerah"}),
     ("category", {"pekerjaan", "occupation", "job", "profesi", "marital", "perkawinan", "statuskawin", "agama",
-                  "religion", "suku", "ethnicity", "pendidikan", "education", "nationality", "kewarganegaraan"}),
+                  "religion", "suku", "ethnicity", "pendidikan", "education", "nationality", "kewarganegaraan",
+                  "jabatan", "position", "jobtitle", "grade", "golongan", "pangkat", "level", "tier", "segment"}),
 ]
 SENSITIVE_WORDS = {"diagnosis", "diagnosa", "diag", "icd", "penyakit", "disease", "condition", "kondisi", "obat",
                    "drug", "medicine", "tindakan", "procedure"}
 # Tokenized types that say whose row it is: risk then counts people, not rows.
-PERSON_TYPES = ("NIK", "MEMBER", "PATIENT", "BPJS", "PERSON", "EMPLOYEE", "KK")
+PERSON_TYPES = ("NIK", "MEMBER", "PATIENT", "CUSTOMER", "BPJS", "PERSON", "EMPLOYEE", "KK")
 _ICD = re.compile(r"^[A-Z]\d{2}(?:\.\d{1,3})?\b")
 _DATE = re.compile(r"^\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?$")
 _NUMBER = re.compile(r"^[-+]?(?:Rp\.?\s*)?\d[\d.,]*$")
@@ -108,6 +115,8 @@ class Rule:
     generalize: str | None = None    # the level of that hierarchy to publish ("year", "kabupaten"...)
     relative_to: str | None = None   # a date column published as an interval from this (anchor) date column
     interval: str | None = None      # "age" (whole years to the anchor) or "days" (from the anchor)
+    top_code: float | None = None    # numbers at or above this are replaced by their mean (large amounts identify)
+    text_quasi: bool | None = None   # text: dates -> year, ages -> 10-year band, inside the text
 
     def __post_init__(self):
         if self.action not in ACTIONS:
@@ -200,6 +209,9 @@ def profile_column(name: str, values: list, *, sample: int = 2000, names=None, s
     picked = present if len(present) <= sample else rng.sample(present, sample)
     by_name = _type_from_name(words)
     is_amount = bool(AMOUNT_WORDS & set(words))
+    # Area and postal codes look like identifiers ("kode", digits, many values) but are shared by many
+    # people: quasi-identifiers, generalised by risk, not tokenized.
+    area = next((h for h, keys in QUASI_WORDS if h in ("wilayah", "postal") and keys & set(words)), None)
     is_birth = bool(BIRTH_WORDS & set(words))
 
     if all(isinstance(v, bool) or type(v).__name__ == "bool_" for v in picked):
@@ -212,6 +224,9 @@ def profile_column(name: str, values: list, *, sample: int = 2000, names=None, s
 
     texts = [_text(v) for v in picked]
     numeric = all(_is_number(v) for v in picked)
+    if area and not by_name:
+        return Rule("keep" if numeric else "scan_patterns", reason=f"{'postal' if area == 'postal' else 'area'} codes "
+                    "or names: shared by many people, a quasi-identifier", stats=stats)
     long_digits = sum(t.isdigit() and len(t) >= 8 for t in texts) / len(texts)
 
     if numeric:
@@ -342,7 +357,8 @@ def save_policy(policy: dict[str, Rule], path: str | Path, **meta) -> None:
 def load_policy(path: str | Path) -> dict[str, Rule]:
     doc = json.loads(Path(path).read_text(encoding="utf-8"))
     return {c: Rule(r["action"], r.get("type"), r.get("reason", ""), r.get("stats", {}), r.get("role"),
-                    r.get("hierarchy"), r.get("generalize"), r.get("relative_to"), r.get("interval"))
+                    r.get("hierarchy"), r.get("generalize"), r.get("relative_to"), r.get("interval"),
+                    r.get("top_code"), r.get("text_quasi"))
             for c, r in doc["columns"].items()}
 
 
@@ -397,6 +413,7 @@ def mask_table(columns: dict[str, list], policy: dict[str, Rule], *, vault: Vaul
         person = None
     original = columns
     columns, risk = _anonymize(columns, policy, k, person, l)
+    columns, top_coded = _top_code(columns, policy)
     vault = vault if vault is not None else Vault(merge_partial=False)
     out, cols_report, details = {}, {}, {}
     tokenized = set()
@@ -420,6 +437,7 @@ def mask_table(columns: dict[str, list], policy: dict[str, Rule], *, vault: Vaul
         present = [v for v in values if not _empty(v)]
         distinct = list(dict.fromkeys(_text(v) for v in present))
         cache: dict[str, tuple[str, list]] = {}
+        in_text = Counter()
         if rule.action == "tokenize":
             for t in distinct:
                 cache[t] = (vault.placeholder(rule.type, t), [])
@@ -442,7 +460,12 @@ def mask_table(columns: dict[str, list], policy: dict[str, Rule], *, vault: Vaul
                     cache[t] = (hit[0], [Entity(hit[1], 0, len(t), t, "column", "same value as a tokenized column")])
                     continue
                 m = mask(t, vault=vault, names=finder)
-                cache[t] = (m.text, m.entities)
+                masked_text = m.text
+                if rule.text_quasi:
+                    masked_text, n = anonymity.text_quasi(masked_text)
+                    if any(n.values()):
+                        in_text.update(n)
+                cache[t] = (masked_text, m.entities)
         col, changed, types = [], 0, Counter()
         for v in values:
             if _empty(v):
@@ -459,6 +482,8 @@ def mask_table(columns: dict[str, list], policy: dict[str, Rule], *, vault: Vaul
         out[c] = col
         cols_report[c] = rep | {"rows": len(values), "changed": changed, "distinct": len(distinct),
                                 "distinct_changed": sum(cache[t][0] != t for t in distinct), "found": dict(types)}
+        if in_text:
+            cols_report[c]["quasi_in_text"] = dict(in_text)        # distinct values with a date / age generalised
         if keep_details:
             details[c] = cache
     out = {c: out[c] for c in columns if c in out}
@@ -471,6 +496,7 @@ def mask_table(columns: dict[str, list], policy: dict[str, Rule], *, vault: Vaul
         "placeholders": dict(Counter(i.type for i in vault.items)),
         "checks": check(original, out, policy, tokenized),
         **({"risk": risk} if risk else {}),
+        **({"top_coded": top_coded} if top_coded else {}),
         "seconds": round(time.perf_counter() - t0, 1),
     }
     return MaskedTable(out, report, vault, details)
@@ -484,6 +510,17 @@ def _intervals(columns: dict[str, list], policy: dict[str, Rule]) -> tuple[dict[
             out[c] = anonymity.interval(columns[c], columns[r.relative_to], r.interval)
             done[c] = {"relative_to": r.relative_to, "interval": r.interval}
     return out, done
+
+
+def _top_code(columns: dict[str, list], policy: dict[str, Rule]) -> tuple[dict[str, list], dict]:
+    """Number columns with `top_code`: values at or above it replaced by their mean. Counts only."""
+    out, report = dict(columns), {}
+    for c, r in policy.items():
+        if r.top_code is not None and c in columns and r.action != "drop":
+            out[c], n, mean = anonymity.apply_top_code(columns[c], r.top_code)
+            if n:
+                report[c] = {"at_or_above": r.top_code, "rows": n, "replaced_by": mean}
+    return out, report
 
 
 def _anonymize(columns: dict[str, list], policy: dict[str, Rule], k: int | None, person: str | None, l: int = 1):
@@ -544,7 +581,12 @@ def mask_frame(df, policy: "dict[str, Rule] | str | Path | None" = None, *, name
         values = done.columns.get(names_of[c])
         if values is None:
             continue                                         # dropped
-        out[c] = df[c] if values == columns[names_of[c]] else pd.Series(values, index=df.index, dtype=object)
+        if values == columns[names_of[c]]:
+            out[c] = df[c]
+        elif (r := policy.get(names_of[c])) is not None and r.action == "keep":
+            out[c] = pd.Series(values, index=df.index)       # generalised, intervals, top-coded: let pandas type it
+        else:
+            out[c] = pd.Series(values, index=df.index, dtype=object)
     done.frame = out
     return done
 
@@ -583,11 +625,13 @@ class Risk:
     person: str | None
     intervals: dict = field(default_factory=dict)   # column -> {relative_to, interval}
     l: int = 1
+    top_coded: dict = field(default_factory=dict)   # column -> {at_or_above, rows, replaced_by}
+    text_quasi: dict = field(default_factory=dict)  # text column -> share of sampled values with a date or age
 
 
 def risk(data, policy: "dict[str, Rule] | str | Path | None" = None, *, k: int = 5, max_suppress: float = 0.01,
          person: str | None = None, names=None, keep: "dict[str, str] | tuple[str, ...]" = (),
-         intervals: bool = True, l: int = 1) -> Risk:
+         intervals: bool = True, l: int = 1, top_share: float = 0.005, sample: int = 2000) -> Risk:
     """How identifying a table's quasi-identifiers are, and the least generalisation that fixes it.
 
     data      a pandas DataFrame, or a dict of column name -> values
@@ -601,6 +645,9 @@ def risk(data, policy: "dict[str, Rule] | str | Path | None" = None, *, k: int =
               admission, days after admission. A policy that already says `relative_to` is followed;
               False turns intervals off. Columns named in `keep` stay dates
     l         also make every group hold at least l different values of each sensitive column
+    top_share number columns with an amount-like name (amount, gaji, saldo...) get their highest values
+              pooled: the top `top_share` of rows (and at least k people) replaced by their mean. 0: off
+    Text columns where dates or ages appear (in 1% or more of a sample) are marked `text_quasi`.
     Nothing is changed: the plan is written into `policy` (as `generalize`) for mask_table to apply.
     """
     columns = data if isinstance(data, dict) else \
@@ -621,9 +668,10 @@ def risk(data, policy: "dict[str, Rule] | str | Path | None" = None, *, k: int =
     for c in quasi:
         if not policy[c].hierarchy:
             policy[c].hierarchy = anonymity.guess_hierarchy(columns[c])
+    top, text = _extra_risks(columns, policy, k=k, person=person, top_share=top_share, sample=sample)
     before = anonymity.measure(columns, quasi, sensitive, k=k, person=person)
     if not quasi:
-        return Risk(before, None, before, policy, k, person, l=l)
+        return Risk(before, None, before, policy, k, person, l=l, top_coded=top, text_quasi=text)
     limit = dict(keep) if isinstance(keep, dict) else dict.fromkeys(keep, "value")
     if not intervals:
         for c in quasi:
@@ -631,9 +679,11 @@ def risk(data, policy: "dict[str, Rule] | str | Path | None" = None, *, k: int =
                 policy[c].relative_to = policy[c].interval = None
                 policy[c].hierarchy = anonymity.guess_hierarchy(columns[c])
     elif not any(policy[c].relative_to for c in quasi):
-        dates = [c for c in quasi if policy[c].hierarchy == "date" and c not in limit]
+        dates = [c for c in quasi if policy[c].hierarchy == "date"]
         birth = tuple(c for c in dates if BIRTH_WORDS & set(_words(c)))
         for c, (anchor, unit) in anonymity.plan_intervals(columns, dates, birth).items():
+            if c in limit:
+                continue                                  # kept: stays a date (it can still be the anchor)
             policy[c].relative_to, policy[c].interval, policy[c].hierarchy = anchor, unit, unit
             policy[c].generalize = None
     converted, made = _intervals(columns, policy)
@@ -645,4 +695,29 @@ def risk(data, policy: "dict[str, Rule] | str | Path | None" = None, *, k: int =
     after = anonymity.measure(done, quasi, sensitive, k=k, person=person, skip=suppressed)
     for c, lvl in plan.levels.items():
         policy[c].generalize = None if lvl == "value" else lvl
-    return Risk(before, plan, after, policy, k, person, made, l)
+    return Risk(before, plan, after, policy, k, person, made, l, top, text)
+
+
+def _extra_risks(columns, policy, *, k, person, top_share, sample) -> tuple[dict, dict]:
+    """Large amounts to pool, and text columns with dates or ages in them; written into the policy."""
+    owners = anonymity._codes(columns[person]) if person and person in columns else None
+    top, text = {}, {}
+    for c, r in policy.items():
+        if c not in columns or r.action == "drop":
+            continue
+        vals = columns[c]
+        if top_share > 0 and r.role is None and r.action in ("keep", "scan_patterns") and AMOUNT_WORDS & set(_words(c)):
+            present = [v for v in vals if not _empty(v)][:sample]
+            if present and sum(anonymity._number(v) is not None for v in present) >= 0.95 * len(present):
+                tc = anonymity.top_code(vals, k=k, share=top_share, owners=owners)
+                r.top_code = tc[0] if tc else None
+                if tc:
+                    top[c] = {"at_or_above": tc[0], "rows": tc[2], "replaced_by": tc[1]}
+        if r.action in ("scan_text", "scan_patterns") and r.role is None:
+            picked = [_text(v) for v in vals[:: max(1, len(vals) // sample)] if not _empty(v)][:sample]
+            if picked:
+                hit = sum(any(anonymity.text_quasi(t)[1].values()) for t in picked) / len(picked)
+                if hit >= 0.01:
+                    r.text_quasi = True
+                    text[c] = round(hit, 4)
+    return top, text

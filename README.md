@@ -135,7 +135,7 @@ After: k = 11; 0.0% of rows unique; 0.0% in groups of fewer than 5 people; avera
 (A made-up table of 196,793 claims; real tables vary.)
 
 - **Quasi-identifiers** are found by `scan` and marked in the policy (`"role": "quasi"`): birth dates
-  and ages, sex, area (kelurahan to provinsi, by Kemendagri code), postal codes, event dates. A
+  and ages, sex, area (kelurahan to provinsi, by Kemendagri code or name), postal codes, event dates. A
   diagnosis is marked `sensitive`.
 - **k** is the smallest group of people sharing those columns (k-anonymity): an attacker who knows
   them about someone can't narrow it below 1 in k. Groups count people, not rows, when a member or
@@ -143,7 +143,10 @@ After: k = 11; 0.0% of rows unique; 0.0% in groups of fewer than 5 people; avera
 - **The fix** steps columns up their hierarchy (date → month → year → 5 years; kelurahan →
   kecamatan → kabupaten → provinsi; ICD-10 → category → chapter), searching every combination for
   the one that reaches k (default 5) losing the least information. At most 1% of rows
-  (`--max-suppress`) may instead have those columns replaced by `*`.
+  (`--max-suppress`) may instead have those columns replaced by `*`. With many columns (more than
+  3,000 combinations) it searches a beam of the most promising plans and then improves them by
+  local moves; on test tables small enough to check every combination it finds the best plan or
+  one within about 1%.
 - **Dates become intervals.** With two or more dates, one is kept as the anchor (the event the others
   follow: admission, not discharge or policy start) and the others are published as whole years to
   it (birth date → age at admission) or days from it (discharge → length of stay). That is what most
@@ -153,7 +156,69 @@ After: k = 11; 0.0% of rows unique; 0.0% in groups of fewer than 5 people; avera
   group all shares one diagnosis, which you learn without knowing the row. `--l 2` makes the fix
   reach that too (generalising further, or suppressing those groups within the budget).
 
+- **Large amounts** (claim paid, gaji, saldo, total belanja) single people out at the top: one Rp 2
+  billion claim, one director's salary. The highest 0.5% of an amount column (`--top-code`, at least
+  k people) are replaced by their mean, so totals and averages still add up.
+- **Dates and ages inside text** ("laki-laki 45 tahun, dirawat 3 Feb 2024") are generalised when
+  masking: a date to its year, an age to a 10-year band ("40-49 tahun"). Durations ("bekerja 5
+  tahun", "3 tahun lalu") stay.
+- **Area and postal codes** are treated as quasi-identifiers, not ID numbers to tokenize.
+- **Area names** generalise like codes: "Kec. Beji" becomes "Kota Depok", then "Jawa Barat".
+  Spellings ("Kab.", "Kota Adm.", "Jabar", "DKI") are matched against the Kemendagri 2025 list of
+  provinsi, kabupaten/kota and kecamatan. A name used in more than one place (Bogor, Cipayung) is
+  settled by "name, parent", by the column's level, or by where most of the column is. One that
+  can't be settled is published no finer than what its places share, and never guessed.
+- `review` shows all of this: generalised cells in the Rows tab, and a Re-identification risk tab with
+  the measures over the whole table (not the sample) and examples per column.
+- `--keep` accepts the C-numbers `--hide-columns` prints (`--keep "C13=month"`).
+
+It works on any table with these columns, not only claims: employees, customers, patients, survey
+answers.
+
 In Python: `r = ld.risk(df, keep={"birth_date": "5 years"}, l=2)`, then `ld.mask_frame(df, r.policy, k=r.k, l=r.l)`.
+
+## Safe AI analysis
+
+Let an AI model analyse a table without seeing it. The model asks for counts, sums and means,
+grouped and filtered; only answers that passed a privacy gate go back. Rows, identifier columns and
+free text never leave your machine.
+
+```bash
+lindungidatamu serve claims.parquet       # an MCP server over stdio, for Claude Code, Claude Desktop, any MCP client
+claude mcp add claims -- lindungidatamu serve /data/claims.parquet
+lindungidatamu ask claims.parquet '{"group_by": [{"column": "admitted", "by": "month"}], "measures": ["people", {"mean": "paid"}]}'
+```
+
+```python
+a = ld.Analysis(df, policy="claims.policy.json", state="claims.analysis")
+a.describe()      # the columns that can be asked about, and how
+a.aggregate(group_by=["sex", {"column": "kelurahan", "by": "kabupaten"}],
+            measures=["people", {"mean": "amount_paid"}],
+            where=[{"column": "diagnosis", "in": ["E11.9", "I10"]}])
+```
+
+The gate, on every answer:
+
+- **Small groups** of fewer than k people (default 5, or the policy's risk k) are left out.
+- **Dominated values**: a sum or mean that one person makes more than half of, or two people more
+  than 85%, is withheld.
+- **Noise**: counts move by up to 2, sums by a fraction of the largest person's share, and both are
+  rounded to 3 significant figures. The noise is fixed by who is in the group, so asking again, or
+  asking the same thing in other words, gives the same answer: it can't be averaged away.
+- **Differencing**: two groups that differ by fewer than k people get the same answer, so "everyone
+  in Cinere" minus "everyone in Cinere but her one claim" gives nothing. This holds whichever is
+  asked first, and also when one of the two would be too small to show.
+- **Identifiers** (tokenized columns, the person column) and free text can't be asked about.
+  Numbers are grouped only in bins, dates by day to year, and area and ICD-10 codes by their levels.
+  One answer has at most 500 groups.
+- **State**: the folder (`FILE.analysis/`) keeps the noise secret, the groups already answered
+  and a log of every question, refusals included. Keep it private: whoever has the secret can
+  remove the noise.
+
+This is statistical disclosure control, the kind national statistics offices use for table
+builders. It is not differential privacy. An attacker who knows a lot about someone and asks many
+cleverly combined questions can still learn something. The gate makes that slow, noisy and visible
+in the log.
 
 ## What it finds
 
@@ -245,4 +310,6 @@ next to a masked name stays visible; telling you that it is UU PDP health data i
 
 ## License
 
-Apache-2.0.
+Apache-2.0. The area list (`wilayah.tsv.gz`, Kepmendagri No 300.2.2-2138 Tahun 2025) comes from
+[cahyadsn/wilayah](https://github.com/cahyadsn/wilayah), MIT: see `src/lindungidatamu/wilayah-LICENSE.txt`.
+`scripts/build_wilayah.py` rebuilds it.

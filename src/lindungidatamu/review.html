@@ -99,6 +99,7 @@ pre.rowtext { white-space: pre-wrap; word-break: break-word; background: var(--s
 <nav>
   <button data-tab="table" class="on">Rows</button>
   <button data-tab="cols">Columns</button>
+  <button data-tab="risk" id="risktab">Re-identification risk</button>
   <button data-tab="review">My review</button>
   <button data-tab="help">How to read this</button>
 </nav>
@@ -122,6 +123,8 @@ pre.rowtext { white-space: pre-wrap; word-break: break-word; background: var(--s
   <p class="note">One row per column of the file, over the sampled rows, with the action its policy gave it and why. “Fully” means 90% or more of a value's characters fell inside something found. Click a column to see only it in the Rows tab.</p>
   <div class="wrap"><table id="cols"></table></div>
 </main></section>
+
+<section id="tab-risk" class="hidden"><main><div id="risk"></div></main></section>
 
 <section id="tab-review" class="hidden"><main>
   <div class="card note">
@@ -178,6 +181,7 @@ $('#types').onclick = e => { const c = e.target.closest('.chip'); if (!c) return
 
 function cellHTML(r, cell) {
   if (view === 'orig') return esc(cell.v);
+  if (view === 'mask' && cell.m != null) return esc(cell.m);
   const hits = cell.e.filter(([, , id]) => on.has(r.ents[id].type)).sort((x, y) => x[0] - y[0]);
   let out = '', last = 0;
   const done = new Set();
@@ -329,18 +333,53 @@ $('#help').innerHTML = `
 <b>tokenize</b> replaces every value of a column with a placeholder; <b>scan text</b> masks what patterns${D.names_model ? ' and the name model' : ''} find in each value;
 <b>scan patterns</b> masks what patterns find; <b>keep</b> leaves the column; <b>drop</b> removes it. The Columns tab shows each column's action and why.</p>
 <p><b>Rows tab.</b> Highlighted shows what was masked, coloured by type (hover for type and detector). Masked shows what the output file holds instead. Click a row for its panel. Keys: ↑/↓ or j/k move between rows, Esc closes.</p>
+<p><b>Re-identification risk.</b> Columns that can single someone out together (dates, area, sex) are generalised, turned into intervals, or suppressed (*) over the whole table; very large amounts are pooled. Those cells show as GENERALIZED in the Rows tab; the Re-identification risk tab has the measures before and after.</p>
 <p><b>Marking.</b> For each thing masked, Right means it is personal data; Wrong means it should have stayed (a hospital, a code). Add anything personal it missed.
 The My review tab turns your marks into precision and recall per type. If a whole column is wrong, change its action in the policy file and run again.</p>
 <p><b>Privacy.</b> This file contains the real values. It works offline, loads nothing from the internet, and keeps your marks in this browser only. Don't share it; share the exported review instead.</p>`;
 
+// ---------- risk
+function drawRisk() {
+  const K = D.risk;
+  if (!K) { $('#risktab').style.display = 'none'; return; }
+  if (!K.before && !Object.keys(K.columns).length && !(Object.keys(K.text_quasi || {}).length)) { $('#risktab').style.display = 'none'; return; }
+  const pct = x => x == null ? '–' : (100 * x).toFixed(1) + '%';
+  const line = m => !m || !m.groups ? '<span class="note">no quasi-identifiers</span>' :
+    `<b>k = ${m.k}</b> · ${pct(m.unique_share)} of rows unique · ${pct(m.below_k_share)} in groups under ${m.target_k} ${m.counted || 'rows'} · ` +
+    `average risk ${m.average_risk.toFixed(3)}` + (m.suppressed_rows ? ` · ${m.suppressed_rows.toLocaleString()} rows suppressed` : '');
+  const sens = m => Object.entries((m && m.sensitive) || {}).map(([c, s]) =>
+    `<div class="note">${esc(c)} (sensitive): l = ${s.l}${s.groups_one_value ? `; ${s.groups_one_value.toLocaleString()} groups all share one value` : ''}</div>`).join('');
+  let h = `<div class="card"><div class="note">Measured over all ${D.total_rows.toLocaleString()} rows, not the sample.
+    k is the smallest crowd anyone can hide in; l, the fewest different values of a sensitive column in a crowd.</div>
+    <p>Before: ${line(K.before)}</p>${sens(K.before)}<p>Published: ${line(K.after)}</p>${sens(K.after)}</div>`;
+  const rows = Object.entries(K.columns);
+  if (rows.length) {
+    h += '<div class="wrap"><table><thead><tr><th>Column</th><th>Published as</th><th>Rows changed</th><th>Examples (sampled rows)</th></tr></thead><tbody>';
+    for (const [c, r] of rows) {
+      let as = [];
+      if (r.relative_to) as.push(r.interval === 'age' ? `age at ${esc(r.relative_to)}` : `days from ${esc(r.relative_to)}`);
+      if (r.generalize) as.push(esc(r.generalize));
+      if (r.top_code != null) as.push(`values ≥ ${Number(r.top_code).toLocaleString()} pooled into their mean`);
+      if (!as.length) as.push('as it is, except suppressed rows (*)');
+      h += `<tr><td>${esc(c)}</td><td>${as.join(', ')}</td><td>${r.changed.toLocaleString()}</td><td>` +
+        r.examples.map(([a, b]) => `${esc(a)} → <b>${esc(b)}</b>`).join('<br>') + '</td></tr>';
+    }
+    h += '</tbody></table></div>';
+  }
+  const tq = Object.entries(K.text_quasi || {});
+  if (tq.length) h += `<div class="card note">Dates and ages written inside text are generalised (a date to its year, an age to a 10-year band): ` +
+    tq.map(([c, n]) => `<b>${esc(c)}</b> (${(n.date || 0) + (n.age || 0)} in the sampled rows)`).join(', ') + '. See the Masked view in Rows.</div>';
+  $('#risk').innerHTML = h;
+}
+
 // ---------- tabs
 function tab(name) {
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
-  ['table', 'cols', 'review', 'help'].forEach(t => $('#tab-' + t).classList.toggle('hidden', t !== name));
+  ['table', 'cols', 'risk', 'review', 'help'].forEach(t => $('#tab-' + t).classList.toggle('hidden', t !== name));
 }
 document.querySelector('nav').onclick = e => { const b = e.target.closest('button'); if (b) tab(b.dataset.tab); };
 
-drawGrid(); drawCols(); drawTally();
+drawGrid(); drawCols(); drawTally(); drawRisk();
 </script>
 </body>
 </html>

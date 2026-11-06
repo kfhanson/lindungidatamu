@@ -28,8 +28,8 @@ Groups count people, not rows, when the table says which rows belong to one pers
 tokenized member or patient column): five claims of one patient are a group of one.
 
 Generalisation steps a column up its hierarchy (date -> month -> year -> 5 years -> *; kelurahan code
--> kecamatan -> kabupaten -> provinsi -> *; ICD-10 code -> category -> chapter -> *). `suggest` searches
-every combination of levels for the one that reaches k with the least lost: fewest steps up, fewest
+or area name -> kecamatan -> kabupaten -> provinsi -> *; ICD-10 code -> category -> chapter -> *).
+`suggest` searches every combination of levels for the one that reaches k with the least lost: fewest steps up, fewest
 rows suppressed. Rows still below k after that (at most `max_suppress` of them) have their
 quasi-identifiers replaced by "*". Everything this module reports is counts: safe to share.
 """
@@ -171,6 +171,13 @@ def generalize(values: list, hierarchy: str, level: str) -> list:
         raise ValueError(f"unknown hierarchy {hierarchy!r}: one of {', '.join(HIERARCHIES)}")
     if level not in LEVELS[hierarchy]:
         raise ValueError(f"{hierarchy} has no level {level!r}: one of {', '.join(LEVELS[hierarchy])}")
+    if hierarchy == "wilayah" and level in ("kecamatan", "kabupaten", "provinsi"):
+        named = [v for v in values if not _empty(v) and not _WILAYAH.match(_text(v))]
+        if named:
+            from . import wilayah
+            areas = wilayah.Areas(named)
+            return [None if _empty(v) else _step(v, hierarchy, level) if _WILAYAH.match(_text(v))
+                    else areas.generalize(v, level) for v in values]
     common = None
     if hierarchy == "category" and level == "common":
         counts = Counter(_text(v) for v in values if not _empty(v))
@@ -271,6 +278,10 @@ def guess_hierarchy(values: list, sample: int = 500) -> str:
         return "icd10"
     if share(lambda v: (a := _number(v)) is not None and 0 <= a <= 130) >= 0.9 and len(set(texts)) > 3:
         return "age"
+    if len({t.lower() for t in texts}) > 1:
+        from . import wilayah
+        if wilayah.share_named(texts) >= 0.9:
+            return "wilayah"
     if len({t.lower() for t in texts}) <= 3:
         return "sex"
     return "category"
@@ -437,7 +448,7 @@ class Plan:
 
 def suggest(columns: dict[str, list], hierarchies: dict[str, str], *, k: int = 5, max_suppress: float = 0.01,
             person: str | None = None, keep_value: tuple[str, ...] = (), limit: dict[str, str] | None = None,
-            max_nodes: int = 3000, sensitive: dict[str, list] | None = None, l: int = 1) -> Plan:
+            max_nodes: int = 3000, sensitive: dict[str, list] | None = None, l: int = 1, beam: int = 12) -> Plan:
     """The least generalisation that reaches k, suppressing at most `max_suppress` of the rows.
 
     Levels are searched from the least general up. A combination that reaches k makes every more general
@@ -448,10 +459,11 @@ def suggest(columns: dict[str, list], hierarchies: dict[str, str], *, k: int = 5
                 suppressed too (they count against the budget like groups below k)
     keep_value  columns that must stay as they are
     limit       column -> the most general level allowed ({"birth_date": "5 years"})
-    max_nodes   above this many combinations (many quasi-identifiers), a greedy search instead:
-                step up the column that removes the most risk per information lost, until k is
-                reached, then step back down wherever k still holds. Not always the least loss, but
-                minimal: no column can be made more precise without breaking k
+    max_nodes   above this many combinations (many quasi-identifiers), a heuristic search instead: a
+                beam of the `beam` most promising partial plans is stepped up one column at a time until
+                they reach k, then each is improved by local moves (one column more precise, or one
+                more precise and another more general) while that loses less and k still holds. Not
+                guaranteed the least loss, but minimal: no column can be made more precise alone
     """
     quasi = list(hierarchies)
     n = max((len(v) for v in columns.values()), default=0)
@@ -482,11 +494,16 @@ def suggest(columns: dict[str, list], hierarchies: dict[str, str], *, k: int = 5
     tried = 0
     seen: dict[tuple, int] = {}
 
+    fast = _Counter(enc, quasi, owners, sens, k, l) if np is not None and n else None
+
     def below(node) -> int:
         node = tuple(node)
         if node not in seen:
-            key, sizes = _group([enc[c][lvl] for c, lvl in zip(quasi, node)], owners)
-            seen[node] = _count(_failing(key, sizes, k, sens, l))
+            if fast is not None:
+                seen[node] = fast(node)
+            else:
+                key, sizes = _group([enc[c][lvl] for c, lvl in zip(quasi, node)], owners)
+                seen[node] = _count(_failing(key, sizes, k, sens, l))
         return seen[node]
 
     def loss(node, b) -> float:
@@ -495,9 +512,7 @@ def suggest(columns: dict[str, list], hierarchies: dict[str, str], *, k: int = 5
     name = lambda nd: {c: LEVELS[hierarchies[c]][lvl] for c, lvl in zip(quasi, nd)}
     share = lambda nd: {c: lost[c][lvl] for c, lvl in zip(quasi, nd)}
     if math.prod(len(r) for r in ranges) > max_nodes:
-        plan = _greedy(quasi, caps, lost, below, loss, budget, k, hierarchies, name, share)
-        plan.l = l
-        return plan
+        return _heuristic(quasi, caps, lost, below, loss, budget, k, l, hierarchies, name, share, beam, seen)
     nodes = sorted(itertools.product(*ranges), key=lambda x: (sum(x), x))
     for node in nodes:
         if any(all(a >= b for a, b in zip(node, f)) for f in found):
@@ -518,39 +533,163 @@ def suggest(columns: dict[str, list], hierarchies: dict[str, str], *, k: int = 5
                  for l_, b_, nd in results[1:6]])
 
 
-def _greedy(quasi, caps, lost, below, loss, budget, k, hierarchies, name, share) -> Plan:
-    node = [0] * len(quasi)
+class _Counter:
+    """Rows failing k (or l) for a combination of levels, fast: the rows are first collapsed to their
+    distinct combinations of quasi-identifiers, person and sensitive values (with a weight), and
+    groups are numbered by hashing (pandas) rather than sorting when pandas is there."""
+
+    def __init__(self, enc, quasi, owners, sens, k, l):
+        import numpy as np
+        self.np, self.k, self.l, self.quasi = np, k, l, quasi
+        base = [enc[c][0] for c in quasi] + ([owners] if owners is not None else []) + list(sens)
+        rows, weight, first = _collapse(base)
+        self.weight = weight
+        self.enc = {c: [lvl[first] for lvl in enc[c]] for c in quasi}
+        self.cards = {c: [int(a.max()) + 1 if len(a) else 1 for a in self.enc[c]] for c in quasi}
+        self.owners = owners[first] if owners is not None else None
+        self.sens = [s[first] for s in sens]
+
+    def __call__(self, node) -> int:
+        np = self.np
+        cols = [(self.enc[c][lvl], self.cards[c][lvl]) for c, lvl in zip(self.quasi, node)]
+        g = _key(cols)
+        groups = int(g.max()) + 1 if len(g) else 0
+        if self.owners is None:
+            size = np.bincount(g, weights=self.weight, minlength=groups)
+        else:
+            size = _distinct(g, self.owners, groups)
+        bad = size < self.k
+        if self.l > 1:
+            for s in self.sens:
+                bad |= _distinct(g, s, groups) < self.l
+        return int(self.weight[bad[g]].sum())
+
+
+def _dense(key):
+    """Numbers 0..m-1 for the distinct values of an int array."""
+    try:
+        import pandas as pd
+        return pd.factorize(key, sort=False)[0].astype("int64", copy=False)
+    except ImportError:
+        import numpy as np
+        return np.unique(key, return_inverse=True)[1].ravel().astype(np.int64)
+
+
+def _key(cols):
+    """Group number per row for (array, cardinality) columns, by mixed radix."""
+    import numpy as np
+    n = len(cols[0][0]) if cols else 0
+    key, span = np.zeros(n, dtype=np.int64), 1
+    for a, card in cols:
+        if span * card >= 2 ** 62:
+            key = _dense(key)
+            span = int(key.max()) + 1
+        key = key * card + a
+        span *= card
+    return _dense(key)
+
+
+def _distinct(g, values, groups):
+    """Per group, how many different values."""
+    import numpy as np
+    width = int(values.max()) + 1 if len(values) else 1
+    pairs = g * width + values
+    try:
+        import pandas as pd
+        pairs = pd.unique(pairs)
+    except ImportError:
+        pairs = np.unique(pairs)
+    return np.bincount(pairs // width, minlength=groups)
+
+
+def _collapse(cols):
+    """Distinct rows of int columns: (row number of each distinct row, its weight, its first row)."""
+    import numpy as np
+    g = _key([(a, int(a.max()) + 1 if len(a) else 1) for a in cols])
+    m = int(g.max()) + 1 if len(g) else 0
+    weight = np.bincount(g, minlength=m).astype(np.int64)
+    first = np.full(m, len(g), dtype=np.int64)
+    np.minimum.at(first, g, np.arange(len(g), dtype=np.int64))
+    return g, weight, first
+
+
+def _heuristic(quasi, caps, lost, below, loss, budget, k, l, hierarchies, name, share, width, seen) -> Plan:
+    m = len(quasi)
+    cost = lambda nd: sum(lost[c][x] for c, x in zip(quasi, nd))
+    start = (0,) * m
+    f0 = below(start)
+    if f0 <= budget:
+        found = [start]
+    else:
+        # Two beam widths: a wider beam is not always better (it fills up with similar plans), and the
+        # checks they share are cached.
+        found = []
+        for w in sorted({max(2, width // 2), width}):
+            for nd in _beam(start, m, caps, cost, below, budget, f0, w):
+                if nd not in found:
+                    found.append(nd)
+    if not found:
+        node = tuple(caps)
+        b = below(node)
+        return Plan(name(node), dict(hierarchies), k, b, loss(node, b), False, len(seen), l, share(node))
+    ranked = sorted(found, key=lambda nd: (cost(nd), nd))
+    improved = sorted({_improve(nd, quasi, caps, cost, below, budget) for nd in ranked},
+                      key=lambda nd: (loss(nd, below(nd)), nd))
+    node = improved[0]
     b = below(node)
-    tried = 1
-    while b > budget:
-        best = None
-        for i, c in enumerate(quasi):
-            if node[i] >= caps[i]:
-                continue
-            cand = node.copy()
-            cand[i] += 1
-            bc = below(cand)
-            tried += 1
-            cost = lost[c][cand[i]] - lost[c][node[i]] + 1e-6
-            score = ((b - bc) / cost, -cost)
-            if best is None or score > best[0]:
-                best = (score, cand, bc)
-        if best is None:                 # every column fully generalised
+    return Plan(name(node), dict(hierarchies), k, b, loss(node, b), True, len(seen), l, share(node),
+                [{"loss": loss(nd, below(nd)), "levels": name(nd), "lost": share(nd), "rows_suppressed": below(nd)}
+                 for nd in improved[1:]])
+
+
+def _beam(start, m, caps, cost, below, budget, f0, width) -> list[tuple]:
+    found: list[tuple] = []
+    beam, visited = [start], {start}
+    while beam:
+        children = []
+        for node in beam:
+            for i in range(m):
+                if node[i] >= caps[i]:
+                    continue
+                ch = node[:i] + (node[i] + 1,) + node[i + 1:]
+                if ch in visited or any(all(a >= b for a, b in zip(ch, f)) for f in found):
+                    continue
+                visited.add(ch)
+                if below(ch) <= budget:
+                    found.append(ch)
+                else:
+                    children.append(ch)
+        # The most promising: risk removed per information lost, over the whole way from the start.
+        children.sort(key=lambda c: (-(f0 - below(c)) / (cost(c) + 1e-6), cost(c), c))
+        beam = children[:width]
+        if len(found) >= width:
             break
-        _, node, b = best
-    reached = b <= budget
-    if reached:
-        # Back down: make each column as precise as k allows, most information-costly first.
-        for i in sorted(range(len(quasi)), key=lambda i: -lost[quasi[i]][node[i]]):
-            while node[i] > 0:
-                cand = node.copy()
-                cand[i] -= 1
-                bc = below(cand)
-                tried += 1
-                if bc > budget:
-                    break
-                node, b = cand, bc
-    return Plan(name(node), dict(hierarchies), k, b, loss(node, b), reached, tried, 1, share(node))
+    return found
+
+
+def _improve(node, quasi, caps, cost, below, budget) -> tuple:
+    """Local moves while they lose less and k still holds: one column more precise, or one more precise
+    and another more general. Cheapest first, so a move is checked against the data only if it
+    would help."""
+    m = len(node)
+    while True:
+        here = cost(node)
+        moves = set()
+        for i in range(m):
+            if node[i] == 0:
+                continue
+            down = node[:i] + (node[i] - 1,) + node[i + 1:]
+            moves.add(down)
+            for j in range(m):
+                if j != i and down[j] < caps[j]:
+                    moves.add(down[:j] + (down[j] + 1,) + down[j + 1:])
+        better = sorted((mv for mv in moves if cost(mv) < here - 1e-9), key=lambda mv: (cost(mv), mv))
+        for mv in better:
+            if below(mv) <= budget:
+                node = mv
+                break
+        else:
+            return node
 
 
 def apply(columns: dict[str, list], levels: dict[str, str], hierarchies: dict[str, str], *, k: int = 5,
@@ -575,3 +714,99 @@ def apply(columns: dict[str, list], levels: dict[str, str], hierarchies: dict[st
         for c in quasi:
             out[c] = [SUPPRESSED if s and not _empty(v) else v for v, s in zip(out[c], suppressed)]
     return out, suppressed
+
+
+# ---------------------------------------------------------------------------------------------------
+# Large amounts: the few highest values identify (one Rp 2 billion claim, one director's salary).
+
+def top_code(values: list, *, k: int = 5, share: float = 0.005, owners: list | None = None):
+    """The threshold above which values are pooled, so the top tail holds at least `share` of the rows
+    and at least k people (or rows). Returns (threshold, replacement, rows) or None when there is no
+    tail worth pooling. The replacement is the mean of the pooled values, so totals still add up."""
+    nums = [(_number(v), i) for i, v in enumerate(values) if not _empty(v)]
+    nums = [(x, i) for x, i in nums if x is not None]
+    if len(nums) < 2 * k:
+        return None
+    nums.sort(key=lambda t: -t[0])
+    want = max(k, math.ceil(share * len(nums)))
+    q = min(want, len(nums)) - 1
+    t = nums[q][0]
+    while True:
+        tail = [(x, i) for x, i in nums if x >= t]
+        people = len({owners[i] for _, i in tail}) if owners is not None else len(tail)
+        if people >= k or len(tail) == len(nums):
+            break
+        t = max(x for x, _ in nums if x < t)
+    if len(tail) == len(nums) or tail[0][0] == t:      # everything, or no spread above the threshold
+        return None
+    mean = sum(x for x, _ in tail) / len(tail)
+    if all(float(x).is_integer() for x, _ in tail):
+        mean = round(mean)
+    return t, mean, len(tail)
+
+
+def apply_top_code(values: list, threshold: float, *, k: int = 5, owners: list | None = None):
+    """Values at or above the threshold replaced by their mean. Returns (values, rows changed, the mean)."""
+    hit = [i for i, v in enumerate(values) if not _empty(v) and (x := _number(v)) is not None and x >= threshold]
+    if not hit:
+        return list(values), 0, None
+    xs = [_number(values[i]) for i in hit]
+    mean = sum(xs) / len(xs)
+    if all(float(x).is_integer() for x in xs):
+        mean = round(mean)
+    out = list(values)
+    for i in hit:
+        out[i] = str(mean) if isinstance(values[i], str) else mean      # numbers read as text stay text
+    return out, len(hit), mean
+
+
+# ---------------------------------------------------------------------------------------------------
+# Dates and ages written inside free text ("laki-laki 45 tahun, dirawat 3 Feb 2024").
+
+_MONTHS = ("januari|jan|februari|pebruari|feb|maret|mar|april|apr|mei|may|juni|jun|juli|jul|agustus|agu|agt|aug|"
+           "september|sept|sep|oktober|okt|oct|november|nopember|nov|desember|des|dec|january|february|march|"
+           "june|july|august|october|december")
+_TEXT_DATE = re.compile(
+    rf"(?<![\w/.-])(?:\d{{1,2}}[-/.]\d{{1,2}}[-/.](\d{{4}}|\d{{2}})|(\d{{4}})[-/.]\d{{1,2}}[-/.]\d{{1,2}}"
+    rf"|\d{{1,2}}\s+(?:{_MONTHS})\.?\s+(\d{{4}})|(?:{_MONTHS})\.?\s+\d{{1,2}},?\s+(\d{{4}}))(?![\w/-])",
+    re.IGNORECASE)
+_TEXT_DAY_MONTH = re.compile(rf"(?<![\w/.-])\d{{1,2}}\s+(?:{_MONTHS})\.?(?![\w-])(?!\s+\d)", re.IGNORECASE)
+_TEXT_AGE = re.compile(
+    r"(?:\b(?:usia|umur|umurnya|usianya|age|aged)\s*:?\s*(\d{1,3})(?:\s*(?:tahun|thn|th|tahunan|years?|yrs?|y\.?o\.?))?"
+    r"|\b(\d{1,3})\s*(?:tahun|thn|th\.?|years?\s+old|yrs?\s+old|y\.?o\.?)(?=\W|$))(?!\s*(?:lalu|yang\s+lalu|ago|kerja|"
+    r"masa|bekerja|menikah|terakhir|lagi|kemudian|sebelum))", re.IGNORECASE)
+
+
+_DURATION_BEFORE = re.compile(r"\b(?:selama|sejak|sudah|telah|bekerja|kerja|menikah|tinggal|lebih\s+dari|kurang\s+dari|"
+                              r"hampir|sekitar|for|since|over|after|dalam|tiap|setiap|per|masa)\s*$")
+
+
+def text_quasi(text: str, *, age_width: int = 10) -> tuple[str, dict]:
+    """Dates and ages inside free text generalised: a date to its year ("3 Feb 2024" -> "2024"), a day and
+    month without a year to "[DATE]", an age to a band ("45 tahun" -> "40-49 tahun"). Returns the new text
+    and counts {"date": n, "age": n}. Durations ("3 tahun lalu", "5 tahun kerja") are left."""
+    counts = {"date": 0, "age": 0}
+
+    def date(m):
+        counts["date"] += 1
+        y = next(g for g in m.groups() if g)
+        return y if len(y) == 4 else f"'{y}"
+
+    def age(m):
+        a = int(m[1] or m[2])
+        before = m.string[max(0, m.start() - 16):m.start()].lower()
+        if a > 120 or (m[2] and _DURATION_BEFORE.search(before)):
+            return m[0]
+        counts["age"] += 1
+        lo = a // age_width * age_width
+        num = m[1] or m[2]
+        return m[0].replace(num, f"{lo}-{lo + age_width - 1}", 1)
+
+    def day_month(m):
+        counts["date"] += 1
+        return "[DATE]"
+
+    text = _TEXT_DATE.sub(date, text)
+    text = _TEXT_DAY_MONTH.sub(day_month, text)
+    text = _TEXT_AGE.sub(age, text)
+    return text, counts

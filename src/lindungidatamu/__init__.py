@@ -8,6 +8,7 @@ addresses, names) before text reaches an AI model, a log or a dataset.
     m.restore("[NIK_1] valid")  # '3174091203880004 valid'
 """
 
+from .analysis import Analysis
 from .detect import Entity, Format, Term, find, patterns_version
 from .mask import Item, Masked, Vault, mask
 from . import table
@@ -16,5 +17,5 @@ from .logs import LogFilter
 from .table import mask_frame, risk
 
 __version__ = "0.1.0.dev0"
-__all__ = ["Entity", "Format", "Item", "LogFilter", "Masked", "Term", "Vault", "find", "mask", "mask_frame",
+__all__ = ["Analysis", "Entity", "Format", "Item", "LogFilter", "Masked", "Term", "Vault", "find", "mask", "mask_frame",
            "patterns_version", "risk", "table", "wrap"]
