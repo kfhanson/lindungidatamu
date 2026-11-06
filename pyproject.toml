@@ -1,11 +1,11 @@
 [project]
 name = "lindungidatamu"
 version = "0.1.0.dev0"
-description = "Find and mask Indonesian personal data (NIK, NPWP, KK, BPJS, bank accounts, names, addresses) before text reaches an AI model, a log or a dataset."
+description = "Use AI on Indonesian personal data without handing it over: gated aggregate analysis over MCP, re-identification risk, and finding and masking NIK, NPWP, BPJS, names and addresses."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
-keywords = ["pii", "indonesia", "nik", "npwp", "masking", "anonymization", "llm", "privacy", "uu-pdp", "presidio"]
+keywords = ["mcp", "statistical-disclosure-control", "k-anonymity", "pii", "indonesia", "nik", "npwp", "masking", "anonymization", "llm", "privacy", "uu-pdp", "presidio"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Natural Language :: Indonesian",

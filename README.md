@@ -1,46 +1,54 @@
 # lindungidatamu
 
-Find and mask Indonesian personal data before text reaches an AI model, a log or a dataset:
-NIK, NPWP (old and new format), KK, BPJS, SIM, passports, bank accounts, cards, phone numbers,
-emails, Indonesian addresses, secrets, and (with a name model) names and organisations.
+Use AI on Indonesian personal data without handing the data over. lindungidatamu lets an AI model
+analyse a sensitive table through a privacy gate, measures how easily a dataset's people can be
+re-identified and fixes it, and finds and masks personal data (NIK, NPWP, BPJS, bank accounts,
+names, addresses) in text and tables. Everything runs on your machine.
 
-```python
-import lindungidatamu as ld
-
-m = ld.mask("Kirim kontrak ke pelanggan, NIK 3174091203880004, rek. BCA 1234567890")
-m.text
-# 'Kirim kontrak ke pelanggan, NIK [NIK_1], rek. BCA [BANK_1]'
-
-answer = call_your_llm(m.text)          # the model only sees placeholders
-m.restore(answer)                       # real values back, on your side
+```bash
+pip install "lindungidatamu[files]"
+claude mcp add claims -- lindungidatamu serve /data/claims.parquet
 ```
+
+Then ask Claude *"Which provinces had the most diabetes claims each quarter, and what was the average
+paid?"* Claude reads which columns exist, asks for the counts and means it needs, and gets back only
+answers that passed the gate:
+
+```
+| provinsi   | admitted (quarter) | people | mean(amount_paid) |
+|---|---|---|---|
+| Jawa Barat | 2024-Q1            | 312    | 1,840,000         |
+| Jawa Barat | 2024-Q2            | 298    | 1,910,000         |
+...
+3 group(s) of fewer than 5 people left out
+```
+
+(Illustrative numbers.)
+
+No row, NIK or name ever reaches the model.
 
 > **Status: early development (0.1.0.dev0).** The API may change before 0.1.0.
 
-**Bahasa Indonesia.** lindungidatamu menemukan dan menyamarkan data pribadi Indonesia (NIK, NPWP,
-KK, BPJS, SIM, paspor, rekening, alamat, nama) sebelum teks dikirim ke model AI, log, atau dataset,
-lalu mengembalikan nilai aslinya di jawaban. Berjalan di server Anda sendiri; tidak ada data yang
-dikirim ke mana pun.
+**Bahasa Indonesia.** lindungidatamu memungkinkan model AI menganalisis tabel data pribadi tanpa
+melihat isinya: model hanya menerima jumlah, total dan rata-rata yang lolos gerbang privasi. Selain
+itu lindungidatamu mengukur dan menurunkan risiko identifikasi ulang sebuah dataset, serta menemukan
+dan menyamarkan data pribadi Indonesia (NIK, NPWP, KK, BPJS, rekening, alamat, nama). Berjalan di
+server Anda sendiri; tidak ada data yang dikirim ke mana pun.
 
 ## Why
 
 Under UU PDP (Law 27/2022), sending customers' personal data to an AI service is processing that
-the company answers for. Generic tools are built around US and EU data: they don't know a NIK
-from a phone number, or that an NPWP has had 16 digits since 2024. lindungidatamu does, checks what
-it finds (a NIK's province and birth date, a card's check digit), and runs on your machine.
+the company answers for. Teams want AI on their claims, patients and customers anyway, and the
+usual answers fall short:
 
-## Accuracy
+- **Pasting rows into a chat** sends everything.
+- **Removing names and NIK** isn't enough: birth date, sex and kelurahan together single out most
+  people, and a diagnosis comes along with them.
+- **Generic tools** are built around US and EU data: they don't know a NIK from a phone number, a
+  kelurahan code from a postal code, or that an NPWP has had 16 digits since 2024.
 
-See [the benchmark](bench/README.md). On real Indonesian text (IndoNLU's NERGrit and NERP test
-sets), names of people are protected **90-93%** of the time with the GLiNER name model, and the
-Indonesian layer removes a third to a half of the model's false alarms. On our synthetic sets of
-chats, forms and documents, patterns protect **100%** of identifiers, numbers and addresses; those
-sets are written by us and partly tuned on, so read them as "it handles these formats". A real-data
-number for identifiers needs consented data and isn't there yet.
-
-Since 2026-11-03 health facilities stay visible (see below), so on the synthetic sets with the name
-model protected is 99.1% (v1 and v2): the difference is "Klinik Sehat Sentosa", which those sets
-label as an organisation to mask. Patterns alone and the real-text name numbers are unchanged.
+lindungidatamu keeps the rows where they are, measures what a released table still gives away, and
+knows Indonesian identifiers, areas and records.
 
 ## Install
 
@@ -48,66 +56,55 @@ Python 3.10 or newer (macOS ships 3.9: use `uv` or Homebrew Python).
 
 ```bash
 pip install lindungidatamu                 # patterns and masking, no dependencies
+pip install "lindungidatamu[files]"        # + tables (CSV, Parquet, Excel): risk, safe analysis, table masking
 pip install "lindungidatamu[names]"        # + names, organisations, addresses (GLiNER, runs locally)
 pip install "lindungidatamu[presidio]"     # + Indonesian recognisers for Microsoft Presidio
 ```
 
-## AI clients, logs and pandas
+## 1. Safe AI analysis
 
-```python
-from openai import OpenAI                     # also AsyncOpenAI, Anthropic, AsyncAnthropic
-client = ld.wrap(OpenAI())                    # one wrapper = one conversation
-r = client.chat.completions.create(model="gpt-4.1", messages=[{"role": "user", "content": text}])
-r.choices[0].message.content                  # the model saw [NIK_1]; you get the real value back
-```
-
-`wrap` masks every request (messages, system prompts, tool results) and restores every answer, tool
-call arguments and streams included (`stream=True`; a placeholder cut across two chunks is held back
-until it is whole). The same value keeps its placeholder for the whole conversation, and a value the
-model has seen once is masked wherever it appears again, also in earlier answers you send back.
-Covered: OpenAI chat completions and responses, Anthropic messages, embeddings. Images, audio and
-uploaded files are not masked; the SDKs' `.stream()` helpers and `with_raw_response` raise instead
-of sending text unmasked. Add `names=GlinerNames()` for people and organisations.
-
-```python
-handler.addFilter(ld.LogFilter())             # log lines, arguments and tracebacks, patterns only
-done = ld.mask_frame(df)                      # table mode on a DataFrame: done.frame, done.report
-```
-
-## Tables and files
+Let an AI model analyse a table without seeing it. The model asks for counts, sums and means,
+grouped and filtered; only answers that passed a privacy gate go back. Rows, identifier columns and
+free text never leave your machine.
 
 ```bash
-pip install "lindungidatamu[files,names]"
-lindungidatamu scan claims.parquet --names     # claims.policy.json: one action per column, and why
-lindungidatamu mask claims.parquet --names     # claims.masked.parquet + a report (counts only)
-lindungidatamu review claims.parquet --names   # claims.review.html: check it by eye, offline
+lindungidatamu serve claims.parquet       # an MCP server over stdio, for Claude Code, Claude Desktop, any MCP client
+claude mcp add claims -- lindungidatamu serve /data/claims.parquet
+lindungidatamu ask claims.parquet '{"group_by": [{"column": "admitted", "by": "month"}], "measures": ["people", {"mean": "paid"}]}'
 ```
 
-A table's personal data is mostly in identifier columns, labelled by the column name rather than a
-word before each number. So `scan` decides per column, from its name, a sample of its values and their
-shape, and writes the decision down for you to check:
+```python
+a = ld.Analysis(df, policy="claims.policy.json", state="claims.analysis")
+a.describe()      # the columns that can be asked about, and how
+a.aggregate(group_by=["sex", {"column": "kelurahan", "by": "kabupaten"}],
+            measures=["people", {"mean": "amount_paid"}],
+            where=[{"column": "diagnosis", "in": ["E11.9", "I10"]}])
+```
 
-| Action | For | Example |
-|---|---|---|
-| `tokenize` | identifier and person columns: every value becomes a placeholder, no scanning | `member_no` → `[MEMBER_12]` |
-| `scan_text` | mixed text: each distinct value is masked by patterns and the name model | `provider_name`, `notes` |
-| `scan_patterns` | categories, codes, amounts as text: patterns only | `diagnosis`, `plan` |
-| `keep` | numbers, dates, true/false | `amount_paid` |
-| `drop` | remove the column (set it yourself) | |
+The gate, on every answer:
 
-Columns of one type share placeholders (`patient_member_no` and `emp_member_no` are both `MEMBER`),
-so joins survive. Every text column is pattern-scanned whatever its action. After masking, a residual
-check looks for identifiers and pattern matches still visible; if it finds any, nothing is written.
+- **Small groups** of fewer than k people (default 5, or the policy's risk k) are left out.
+- **Dominated values**: a sum or mean that one person makes more than half of, or two people more
+  than 85%, is withheld.
+- **Noise**: counts move by up to 2, sums by a fraction of the largest person's share, and both are
+  rounded to 3 significant figures. The noise is fixed by who is in the group, so asking again, or
+  asking the same thing in other words, gives the same answer: it can't be averaged away.
+- **Differencing**: two groups that differ by fewer than k people get the same answer, so "everyone
+  in Cinere" minus "everyone in Cinere but her one claim" gives nothing. This holds whichever is
+  asked first, and also when one of the two would be too small to show.
+- **Identifiers** (tokenized columns, the person column) and free text can't be asked about.
+  Numbers are grouped only in bins, dates by day to year, and area and ICD-10 codes by their levels.
+  One answer has at most 500 groups.
+- **State**: the folder (`FILE.analysis/`) keeps the noise secret, the groups already answered
+  and a log of every question, refusals included. Keep it private: whoever has the secret can
+  remove the noise.
 
-**One-way by default.** Without `--vault`, the values behind the placeholders are not kept anywhere.
-With `--vault claims.vault.json` the masking is reversible: analyse the masked data with an AI model,
-then `lindungidatamu restore findings.md --vault claims.vault.json` puts the real values back (exact
-placeholders only). The vault holds every real value: keep it private, never send it with the data.
+This is statistical disclosure control, the kind national statistics offices use for table
+builders. It is not differential privacy. An attacker who knows a lot about someone and asks many
+cleverly combined questions can still learn something. The gate makes that slow, noisy and visible
+in the log.
 
-The same in Python, without pandas: `ld.table.profile(columns)` and `ld.table.mask_table(columns, policy)`,
-where `columns` is a dict of column name → list of values.
-
-## Re-identification risk
+## 2. Re-identification risk
 
 Masking takes out names and numbers, but the columns that stay can still single someone out together:
 a woman born on 14 March 1987, living in one kelurahan, admitted on 3 February, is probably the only
@@ -177,50 +174,79 @@ answers.
 
 In Python: `r = ld.risk(df, keep={"birth_date": "5 years"}, l=2)`, then `ld.mask_frame(df, r.policy, k=r.k, l=r.l)`.
 
-## Safe AI analysis
+## 3. Find and mask personal data
 
-Let an AI model analyse a table without seeing it. The model asks for counts, sums and means,
-grouped and filtered; only answers that passed a privacy gate go back. Rows, identifier columns and
-free text never leave your machine.
-
-```bash
-lindungidatamu serve claims.parquet       # an MCP server over stdio, for Claude Code, Claude Desktop, any MCP client
-claude mcp add claims -- lindungidatamu serve /data/claims.parquet
-lindungidatamu ask claims.parquet '{"group_by": [{"column": "admitted", "by": "month"}], "measures": ["people", {"mean": "paid"}]}'
-```
+Before text reaches an AI model, a log or a shared file: NIK, NPWP (old and new format), KK, BPJS,
+SIM, passports, bank accounts, cards, phone numbers, emails, Indonesian addresses, secrets, and
+(with a name model) names and organisations.
 
 ```python
-a = ld.Analysis(df, policy="claims.policy.json", state="claims.analysis")
-a.describe()      # the columns that can be asked about, and how
-a.aggregate(group_by=["sex", {"column": "kelurahan", "by": "kabupaten"}],
-            measures=["people", {"mean": "amount_paid"}],
-            where=[{"column": "diagnosis", "in": ["E11.9", "I10"]}])
+import lindungidatamu as ld
+
+m = ld.mask("Kirim kontrak ke pelanggan, NIK 3174091203880004, rek. BCA 1234567890")
+m.text
+# 'Kirim kontrak ke pelanggan, NIK [NIK_1], rek. BCA [BANK_1]'
+
+answer = call_your_llm(m.text)          # the model only sees placeholders
+m.restore(answer)                       # real values back, on your side
 ```
 
-The gate, on every answer:
+### AI clients, logs and pandas
 
-- **Small groups** of fewer than k people (default 5, or the policy's risk k) are left out.
-- **Dominated values**: a sum or mean that one person makes more than half of, or two people more
-  than 85%, is withheld.
-- **Noise**: counts move by up to 2, sums by a fraction of the largest person's share, and both are
-  rounded to 3 significant figures. The noise is fixed by who is in the group, so asking again, or
-  asking the same thing in other words, gives the same answer: it can't be averaged away.
-- **Differencing**: two groups that differ by fewer than k people get the same answer, so "everyone
-  in Cinere" minus "everyone in Cinere but her one claim" gives nothing. This holds whichever is
-  asked first, and also when one of the two would be too small to show.
-- **Identifiers** (tokenized columns, the person column) and free text can't be asked about.
-  Numbers are grouped only in bins, dates by day to year, and area and ICD-10 codes by their levels.
-  One answer has at most 500 groups.
-- **State**: the folder (`FILE.analysis/`) keeps the noise secret, the groups already answered
-  and a log of every question, refusals included. Keep it private: whoever has the secret can
-  remove the noise.
+```python
+from openai import OpenAI                     # also AsyncOpenAI, Anthropic, AsyncAnthropic
+client = ld.wrap(OpenAI())                    # one wrapper = one conversation
+r = client.chat.completions.create(model="gpt-4.1", messages=[{"role": "user", "content": text}])
+r.choices[0].message.content                  # the model saw [NIK_1]; you get the real value back
+```
 
-This is statistical disclosure control, the kind national statistics offices use for table
-builders. It is not differential privacy. An attacker who knows a lot about someone and asks many
-cleverly combined questions can still learn something. The gate makes that slow, noisy and visible
-in the log.
+`wrap` masks every request (messages, system prompts, tool results) and restores every answer, tool
+call arguments and streams included (`stream=True`; a placeholder cut across two chunks is held back
+until it is whole). The same value keeps its placeholder for the whole conversation, and a value the
+model has seen once is masked wherever it appears again, also in earlier answers you send back.
+Covered: OpenAI chat completions and responses, Anthropic messages, embeddings. Images, audio and
+uploaded files are not masked; the SDKs' `.stream()` helpers and `with_raw_response` raise instead
+of sending text unmasked. Add `names=GlinerNames()` for people and organisations.
 
-## What it finds
+```python
+handler.addFilter(ld.LogFilter())             # log lines, arguments and tracebacks, patterns only
+done = ld.mask_frame(df)                      # table mode on a DataFrame: done.frame, done.report
+```
+
+### Tables and files
+
+```bash
+pip install "lindungidatamu[files,names]"
+lindungidatamu scan claims.parquet --names     # claims.policy.json: one action per column, and why
+lindungidatamu mask claims.parquet --names     # claims.masked.parquet + a report (counts only)
+lindungidatamu review claims.parquet --names   # claims.review.html: check it by eye, offline
+```
+
+A table's personal data is mostly in identifier columns, labelled by the column name rather than a
+word before each number. So `scan` decides per column, from its name, a sample of its values and their
+shape, and writes the decision down for you to check:
+
+| Action | For | Example |
+|---|---|---|
+| `tokenize` | identifier and person columns: every value becomes a placeholder, no scanning | `member_no` → `[MEMBER_12]` |
+| `scan_text` | mixed text: each distinct value is masked by patterns and the name model | `provider_name`, `notes` |
+| `scan_patterns` | categories, codes, amounts as text: patterns only | `diagnosis`, `plan` |
+| `keep` | numbers, dates, true/false | `amount_paid` |
+| `drop` | remove the column (set it yourself) | |
+
+Columns of one type share placeholders (`patient_member_no` and `emp_member_no` are both `MEMBER`),
+so joins survive. Every text column is pattern-scanned whatever its action. After masking, a residual
+check looks for identifiers and pattern matches still visible; if it finds any, nothing is written.
+
+**One-way by default.** Without `--vault`, the values behind the placeholders are not kept anywhere.
+With `--vault claims.vault.json` the masking is reversible: analyse the masked data with an AI model,
+then `lindungidatamu restore findings.md --vault claims.vault.json` puts the real values back (exact
+placeholders only). The vault holds every real value: keep it private, never send it with the data.
+
+The same in Python, without pandas: `ld.table.profile(columns)` and `ld.table.mask_table(columns, policy)`,
+where `columns` is a dict of column name → list of values.
+
+### What it finds
 
 | Type | Example | Found when |
 |---|---|---|
@@ -251,7 +277,20 @@ All-caps text (`BAMBANG SUTRISNO`, common in Indonesian records) goes to the nam
 it reads far better. The model loads from your local cache without contacting the internet once it is
 downloaded, and its version is pinned.
 
-## More
+### Accuracy
+
+See [the benchmark](bench/README.md). On real Indonesian text (IndoNLU's NERGrit and NERP test
+sets), names of people are protected **90-93%** of the time with the GLiNER name model, and the
+Indonesian layer removes a third to a half of the model's false alarms. On our synthetic sets of
+chats, forms and documents, patterns protect **100%** of identifiers, numbers and addresses; those
+sets are written by us and partly tuned on, so read them as "it handles these formats". A real-data
+number for identifiers needs consented data and isn't there yet.
+
+Since 2026-11-03 health facilities stay visible (see above), so on the synthetic sets with the name
+model protected is 99.1% (v1 and v2): the difference is "Klinik Sehat Sentosa", which those sets
+label as an organisation to mask. Patterns alone and the real-text name numbers are unchanged.
+
+### More
 
 ```python
 # A conversation: one vault, consistent placeholders across messages
@@ -280,7 +319,7 @@ ld.Vault.load("claims.vault.json").restore(report, strict=True)
 ld.find("NIK 3174091203880004")   # [Entity(type='NIK', start=4, end=20, ...)]
 ```
 
-### Microsoft Presidio
+#### Microsoft Presidio
 
 ```python
 from presidio_analyzer import AnalyzerEngine
@@ -292,12 +331,14 @@ analyzer.analyze("NIK 3174091203880004", language="en")    # ID_NIK
 
 ## Free and Pro
 
-This library is free and stays complete on its own: everything needed to find, mask and restore
-personal data safely is here, and nothing that keeps your data safe will move behind a paywall.
+This library is free and stays complete on its own: everything needed to analyse, measure, find,
+mask and restore personal data safely is here, and nothing that keeps your data safe will move behind a paywall.
 lindungidatamu Pro adds judgement, compliance evidence and convenience on top.
 
 | | Free (this repo, Apache-2.0) | Pro |
 |---|---|---|
+| Safe AI analysis | Aggregate gate (small groups, dominance, noise, differencing), MCP server, `ask`, question log | |
+| Re-identification risk | k and l measures, least generalisation, top-coding, date intervals, area names, review tab | |
 | Finding | Patterns and validators, GLiNER name model (runs locally) | Fine-tuned Indonesian name model (all-caps text, institutions named after people) |
 | Masking | `mask` / `restore`, Vault, your own terms and formats | |
 | Tables and files | Per-column decisions (identifier, person, text, category), whole-column tokens, residual check, policy file, command line, review page | Decision model per column: UU PDP specific data (health, children, finance, criminal records, biometric, genetic) |
