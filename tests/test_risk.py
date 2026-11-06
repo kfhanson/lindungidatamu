@@ -6,37 +6,8 @@ import re
 import pytest
 
 from lindungidatamu import anonymity as an
+from lindungidatamu.attacks import claims  # the made-up claims table, shared with the gallery
 from lindungidatamu.table import Rule, mask_table, profile, risk
-
-
-def claims(n_members: int = 1500, seed: int = 7) -> dict[str, list]:
-    """A made-up claims table with realistic skew: crowded and sparse areas, common and rare diagnoses,
-    members with one to six claims."""
-    rng = random.Random(seed)
-    kelurahan = [f"{p}.{k:02d}.{c:02d}.{1000 + v}" for p in (31, 32, 35) for k in (1, 2, 71) for c in (1, 2, 3)
-                 for v in range(4)]
-    area_w = [rng.paretovariate(1.2) for _ in kelurahan]
-    common = ["J18.9", "E11.9", "I10", "K29.7", "A09", "J06.9", "N39.0", "M54.5"]
-    rare = ["G20", "C50.9", "Q90.9", "B20", "F20.0", "D57.1"]
-    cols = {c: [] for c in ("claim_no", "member_no", "birth_date", "sex", "kelurahan", "admitted", "diagnosis",
-                            "amount_paid")}
-    claim = 0
-    for m in range(n_members):
-        member = f"{100000000 + m * 37:013d}"
-        born = dt.date(1945, 1, 1) + dt.timedelta(days=rng.randrange(0, 65 * 365))
-        sex = rng.choice("LP")
-        area = rng.choices(kelurahan, area_w)[0]
-        for _ in range(rng.choice((1, 1, 1, 2, 2, 3, 6))):
-            claim += 1
-            cols["claim_no"].append(f"CLM-{claim:07d}")
-            cols["member_no"].append(member)
-            cols["birth_date"].append(born)
-            cols["sex"].append(sex)
-            cols["kelurahan"].append(area)
-            cols["admitted"].append(dt.date(2024, 1, 1) + dt.timedelta(days=rng.randrange(366)))
-            cols["diagnosis"].append(rng.choice(rare) if rng.random() < 0.03 else rng.choice(common))
-            cols["amount_paid"].append(rng.randrange(100, 20000) * 1000)
-    return cols
 
 
 def test_measure_counts_groups():

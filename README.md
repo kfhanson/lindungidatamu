@@ -100,9 +100,72 @@ The gate, on every answer:
   remove the noise.
 
 This is statistical disclosure control, the kind national statistics offices use for table
-builders. It is not differential privacy. An attacker who knows a lot about someone and asks many
+builders. It is not differential privacy: an attacker who knows a lot about someone and asks many
 cleverly combined questions can still learn something. The gate makes that slow, noisy and visible
-in the log.
+in the log. For a guarantee, use DP mode.
+
+### Differential privacy mode
+
+```bash
+lindungidatamu serve claims.parquet --dp 1          # a total privacy budget of epsilon 1 for this table
+```
+
+```python
+a = ld.Analysis(df, dp=1.0, state="claims.analysis")
+a.aggregate(group_by=[{"column": "admitted", "by": "quarter", "values": ["2024-Q1", "2024-Q2", "2024-Q3", "2024-Q4"]}],
+            measures=["people", {"mean": "amount_paid", "upper": 50_000_000}],
+            groups_per_person=4, epsilon=0.2)
+```
+
+Differential privacy gives a proof instead of a list of attacks: whatever is asked, and however the
+answers are combined, what they say about any one person is limited by the budget (epsilon). Each
+answer spends some of it (a tenth by default, or `epsilon` in the question); when it is used up,
+questions are refused. The budget lives in the state folder, so whoever holds that folder holds the
+guarantee: a new folder is a new budget.
+
+- **Noise** is exact discrete Laplace noise, drawn with integer arithmetic (no floating-point leaks),
+  scaled to what one person can change. Every answer says how far its noise goes, 95% of the time.
+  The same question asked again gets the same answer and spends nothing.
+- **One person's share is bounded.** Each person counts in at most `groups_per_person` groups (default 1)
+  and with at most `rows_per_person` rows in each (default 3). For a time series, raise
+  `groups_per_person` to the number of periods, or totals come out low. Sums and means need an `upper`
+  bound (and `lower`, default 0): values outside are clipped.
+- **Groups.** List the groups you want (`"values": [...]` on every group_by column) and every one is
+  shown. Without a list only groups with many people appear, chosen by a noisy threshold (delta, default
+  1e-6, the chance that a group of one person shows up). `describe_table` lists columns, never values.
+- **Identifiers** and free text stay out, as with the gate.
+
+The price is noise: at epsilon 0.1 a question, a count is within about ±30 to ±120 (more when a person
+can count in more groups), and sums need sensible bounds. That suits tables of tens of thousands of
+people and more; on a few hundred, most answers are noise. The gate stays the default for exploring;
+DP mode is for data leaving the team, or when you need a guarantee you can show a regulator.
+
+### The attack gallery
+
+`python -m lindungidatamu.attacks` runs known attacks through the same question language three ways:
+answered exactly, as a plain SQL or pandas tool would ("gate off"), through the gate, and in DP mode
+(epsilon 0.1 a question, with no total budget, so each attack runs to the end and the table shows what
+the noise alone does). It uses a made-up claims table (3,335 claims of 1,500 members), so anyone can
+rerun it, and the tests fail if a row changes. DP numbers vary from run to run; these are typical.
+
+| Attack | What it tries | Gate off | Gate on | DP mode |
+|---|---|---|---|---|
+| Subtraction | sum(kelurahan) − sum(kelurahan without one claim), to get that claim | within 5%: 108/108 | ✓ 0/108 (guessing the average: 4/108) | ✓ 0/108 |
+| Diagnosis guess | count of J18.9 claims with and without the target's claim | right 108/108 | ✓ 91/108, the same as always guessing "no" | ✓ about 70/108, worse than always "no" |
+| Averaging | the same count asked 8 ways, answers averaged | exact 75/75 | ✓ 40/75, the same as from one answer | ✗ helps, and costs epsilon 0.8 per count |
+| Narrowing | filter on birth date + sex + kelurahan until one person is left | their diagnoses read 100/100 | ✓ 0/100 | ✓ 0/100 |
+| Dominance | a quiet kelurahan's total when one claim of Rp 1–5 billion is most of it | big claim within 10%: 20/20 | ✓ 0/20 | ✓ 0/20 |
+| Identifier columns | group by member_no or claim_no | every person's rows | ✓ refused | ✓ refused |
+| Everyone has it | which of 20 kelurahan all share N18.5 | right 20/20 | ✗ 20/20: not blocked | ✓ about 10/20, chance |
+
+Two rows are limits, shown on purpose:
+
+- **Everyone has it.** When everyone in a group shares a diagnosis, counts say so, from any count
+  service. The gate doesn't block it: it is a fact about the group rather than one person, and
+  `risk --l 2` finds such groups before data is shared. DP mode hides groups this small in its noise.
+- **Averaging in DP mode** works, because every answer has fresh noise. That is what the total budget
+  is for: the 8 answers cost epsilon 0.8 together, so with a budget of 1 the attacker averages one count
+  and has nothing left.
 
 ## 2. Re-identification risk
 
@@ -337,7 +400,7 @@ lindungidatamu Pro adds judgement, compliance evidence and convenience on top.
 
 | | Free (this repo, Apache-2.0) | Pro |
 |---|---|---|
-| Safe AI analysis | Aggregate gate (small groups, dominance, noise, differencing), MCP server, `ask`, question log | |
+| Safe AI analysis | Aggregate gate (small groups, dominance, noise, differencing), differential privacy mode with a budget, MCP server, `ask`, question log, attack gallery | |
 | Re-identification risk | k and l measures, least generalisation, top-coding, date intervals, area names, review tab | |
 | Finding | Patterns and validators, GLiNER name model (runs locally) | Fine-tuned Indonesian name model (all-caps text, institutions named after people) |
 | Masking | `mask` / `restore`, Vault, your own terms and formats | |

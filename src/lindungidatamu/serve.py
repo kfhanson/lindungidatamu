@@ -23,18 +23,36 @@ out, sums one or two people dominate are withheld, and numbers carry small noise
 sums and means by a little and rounded to 3 significant figures), so treat small differences as noise.
 Groups that differ from an earlier answer by fewer than k people get that earlier answer."""
 
+DP_INSTRUCTIONS = """This server answers questions about one table with aggregates only, under differential
+privacy: every answer carries random noise and spends part of a fixed privacy budget (epsilon); when the
+budget is used up, questions are refused. describe_table shows the budget left and the columns, but no
+values. Plan before asking: one well-chosen question beats many small ones, and the same question asked
+again returns the same answer for free.
+- List the groups you want with "values" on every group_by column ({"column": "sex", "values": ["L", "P"]},
+  months as "2024-01", quarters as "2024-Q1"): every listed group is shown. Without "values", only groups
+  with many people appear.
+- Sums and means need an "upper" bound (and "lower", default 0); values outside are clipped. Choose it from
+  what you know about the column; a tighter bound means less noise.
+- Each person counts in at most groups_per_person groups (default 1) and with at most rows_per_person rows
+  (default 3). For a time series or anything where one person has rows in several groups, raise
+  groups_per_person to the number of groups, or totals will be too low.
+- Each answer states its noise (95% range). Do not read differences smaller than that."""
+
 _GROUP = {"oneOf": [
     {"type": "string", "description": "a category column"},
     {"type": "object", "properties": {
         "column": {"type": "string"},
         "by": {"type": "string", "description": "for a date: day, week, month, quarter or year; for an area or "
                                                 "diagnosis code column, a level describe_table lists"},
-        "width": {"type": "number", "description": "for a number column: the bin width"}},
+        "width": {"type": "number", "description": "for a number column: the bin width"},
+        "values": {"type": "array", "description": "DP mode: the groups to show, every one of them"}},
      "required": ["column"]}]}
 _MEASURE = {"oneOf": [
     {"type": "string", "enum": ["people", "rows"]},
     {"type": "object", "description": '{"sum": column} or {"mean": column}, a number column',
-     "properties": {"sum": {"type": "string"}, "mean": {"type": "string"}}}]}
+     "properties": {"sum": {"type": "string"}, "mean": {"type": "string"},
+                    "upper": {"type": "number", "description": "DP mode: values above are clipped (required)"},
+                    "lower": {"type": "number", "description": "DP mode: values below are clipped (default 0)"}}}]}
 _WHERE = {"type": "object", "description": 'a column and one operator: {"column": "sex", "=": "P"}, '
                                           '{"column": "admitted", "between": ["2024-01-01", "2024-03-31"]}, '
                                           '{"column": "diagnosis", "in": ["E11.9", "I10"]}; operators: '
@@ -52,7 +70,10 @@ TOOLS = [
      "inputSchema": {"type": "object", "properties": {
          "group_by": {"type": "array", "items": _GROUP, "description": "columns to group by (none: one total)"},
          "measures": {"type": "array", "items": _MEASURE, "description": 'default ["people"]'},
-         "where": {"type": "array", "items": _WHERE, "description": "conditions, all of which must hold"}}}},
+         "where": {"type": "array", "items": _WHERE, "description": "conditions, all of which must hold"},
+         "epsilon": {"type": "number", "description": "DP mode: the budget this question spends"},
+         "groups_per_person": {"type": "integer", "description": "DP mode: groups one person may count in"},
+         "rows_per_person": {"type": "integer", "description": "DP mode: rows one person may add to a group"}}}},
 ]
 
 
@@ -66,7 +87,7 @@ def handle(analysis: Analysis, msg: dict) -> dict | None:
             result = {"protocolVersion": msg.get("params", {}).get("protocolVersion", PROTOCOL),
                       "capabilities": {"tools": {}},
                       "serverInfo": {"name": "lindungidatamu", "version": __version__},
-                      "instructions": INSTRUCTIONS}
+                      "instructions": DP_INSTRUCTIONS if analysis.budget is not None else INSTRUCTIONS}
         elif method == "ping":
             result = {}
         elif method == "tools/list":
@@ -86,9 +107,10 @@ def _call(analysis: Analysis, params: dict) -> dict:
         if name == "describe_table":
             text = json.dumps(analysis.describe(), ensure_ascii=False, indent=1)
         elif name == "aggregate":
+            options = {k: args[k] for k in ("epsilon", "groups_per_person", "rows_per_person") if k in args}
             answer = analysis.aggregate(group_by=args.get("group_by") or [],
                                         measures=args.get("measures") or ["people"],
-                                        where=args.get("where") or [])
+                                        where=args.get("where") or [], **options)
             text = str(answer) + "\n\n" + json.dumps(answer.to_dict(), ensure_ascii=False)
         else:
             return {"content": [{"type": "text", "text": f"unknown tool {name}"}], "isError": True}

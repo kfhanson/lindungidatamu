@@ -70,10 +70,12 @@ class Answer:
     reused: int = 0                 # groups answered from an earlier group that differs by fewer than k people
     withheld: int = 0               # sums or means left empty because one or two people dominate them
     notes: list[str] = field(default_factory=list)
+    privacy: dict | None = None     # DP mode: what this answer spent
 
     def to_dict(self) -> dict:
-        return {"columns": self.columns, "rows": self.rows, "hidden_groups": self.hidden_groups,
-                "reused": self.reused, "withheld": self.withheld, "notes": self.notes}
+        d = {"columns": self.columns, "rows": self.rows, "hidden_groups": self.hidden_groups,
+             "reused": self.reused, "withheld": self.withheld, "notes": self.notes}
+        return d | {"privacy": self.privacy} if self.privacy is not None else d
 
     def frame(self):
         pd, _ = _pandas()
@@ -92,7 +94,8 @@ class QueryError(ValueError):
 
 class Analysis:
     def __init__(self, data, policy=None, *, k: int = 5, person: str | None = None, secret: bytes | str | None = None,
-                 max_groups: int = 500, names=None, state: str | Path | None = None):
+                 max_groups: int = 500, names=None, state: str | Path | None = None, dp: float | None = None,
+                 dp_question: float | None = None, delta: float = 1e-6):
         from . import table
         pd, np = _pandas()
         if isinstance(data, (str, Path)):
@@ -109,6 +112,17 @@ class Analysis:
         self.k, self.max_groups = k, max_groups
         self.person = person if person is not None else table.person_column(policy)
         self.state = Path(state) if state is not None else None
+        self.budget = None
+        if self.state is not None:
+            other = self.state / ("history.npz" if dp else "budget.json")
+            if other.exists():
+                raise ValueError(f"{self.state} was used {'without' if dp else 'in'} DP mode: its answers are not "
+                                 "counted the same way, so use a new state folder for this mode")
+        if dp:
+            from . import dp as _dp
+            if self.state is not None:
+                self.state.mkdir(parents=True, exist_ok=True)
+            self.budget = _dp.Budget(dp, dp_question, delta, self.state / "budget.json" if self.state else None)
         if self.state is not None and secret is None:
             secret = self._state_secret()
         self._secret = (secret.encode() if isinstance(secret, str) else secret) or _secrets.token_bytes(32)
@@ -160,7 +174,7 @@ class Analysis:
         # what this table is, for the state: the same rows in the same order, the same people
         with np.errstate(over="ignore"):
             self._fingerprint = f"{len(codes)}:{int(self._rkey.sum(dtype='uint64'))}"
-        if self.state is not None:
+        if self.state is not None and self.budget is None:
             self._load_history()
 
     # ---- state ----------------------------------------------------------------------------------
@@ -188,9 +202,13 @@ class Analysis:
             self._released.setdefault(int(nw), []).append((who[w:w + nw], pos[p:p + np_], bool(sm)))
             w, p = w + nw, p + np_
 
-    def _save(self, entry: dict):
+    def _save(self, entry: dict, history: bool = True):
         import json
         _, np = _pandas()
+        if not history:
+            with open(self.state / "log.jsonl", "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            return
         groups = [g for gs in self._released.values() for g in gs]
         empty = np.zeros(0, dtype="int64")
         tmp = self.state / "history.tmp.npz"
@@ -238,7 +256,12 @@ class Analysis:
             if c in self.roles:
                 entry["role"] = self.roles[c]
             s = self.df[c]
-            if kind == "category":
+            if self.budget is not None:            # DP: values come from the data, so they cost budget
+                entry["group_by"] = {"category": "as is" + (f", or by one of {', '.join(self.levels[c][1])}"
+                                                             if c in self.levels else ""),
+                                     "number": 'bins: {"column": c, "width": w}',
+                                     "date": f"by one of {', '.join(DATE_BINS)}"}[kind]
+            elif kind == "category":
                 people = pd.Series(self._pid).groupby(s.fillna("\0")).nunique()
                 shown = sorted(str(v) for v, n in people.items() if n >= self.k and v != "\0")
                 entry["values"] = shown[:100]
@@ -254,6 +277,15 @@ class Analysis:
             else:
                 entry["group_by"] = f"by one of {', '.join(DATE_BINS)}"
             cols.append(entry)
+        if self.budget is not None:
+            return {"privacy": self.budget.to_dict(), "columns": cols,
+                    "hidden": [{"name": c, "why": why} for c, why in self.hidden.items()],
+                    "measures": ["people", "rows", {"sum": "<number column>", "upper": "<bound>", "lower": 0},
+                                 {"mean": "<number column>", "upper": "<bound>", "lower": 0}],
+                    "options": {"epsilon": f"budget this question spends (default {self.budget.per_question:g})",
+                                "groups_per_person": "groups one person may count in (default 1)",
+                                "rows_per_person": "rows one person may add to a group (default 3)"},
+                    "where_ops": list(OPS)}
         everyone = np.arange(len(self._pid))
         total = self._noisy_count(len(np.unique(self._pid)), self._cell_key(everyone)[0], "people")
         return {"people": total, "k": self.k, "columns": cols,
@@ -279,21 +311,32 @@ class Analysis:
         noise = next(d for p, d in COUNT_NOISE if u < p)
         return max(n + noise, 0)
 
-    def aggregate(self, group_by=(), measures=("people",), where=()) -> Answer:
+    def aggregate(self, group_by=(), measures=("people",), where=(), **dp_options) -> Answer:
         """A gated aggregate. group_by: column names, {"column": date, "by": "month"} or
         {"column": number, "width": 10}. measures: "people", "rows", {"sum": col}, {"mean": col}.
-        where: {"column": c, "<op>": value} with op one of OPS."""
+        where: {"column": c, "<op>": value} with op one of OPS. In DP mode also epsilon,
+        groups_per_person and rows_per_person (see dp.py), and sums and means take "upper"."""
         group_by = [group_by] if isinstance(group_by, (str, dict)) else list(group_by)
         measures = [measures] if isinstance(measures, (str, dict)) else list(measures)
         where = [where] if isinstance(where, dict) else list(where)
         try:
+            if self.budget is not None:
+                from . import dp
+                unknown = set(dp_options) - {"epsilon", "groups_per_person", "rows_per_person"}
+                if unknown:
+                    raise QueryError(f"unknown option(s) {', '.join(sorted(unknown))}")
+                return dp.aggregate(self, group_by, measures, where, **dp_options)
+            if any(v is not None for v in dp_options.values()):
+                raise QueryError(f"{', '.join(sorted(dp_options))}: only in DP mode (serve --dp)")
+            if any(isinstance(g, dict) and "values" in g for g in group_by):
+                raise QueryError('"values" in group_by: only in DP mode (serve --dp)')
             return self._aggregate(group_by, measures, where)
         except QueryError as e:
             self.log.append({"at": dt.datetime.now().isoformat(timespec="seconds"),
                              "query": {"group_by": group_by, "measures": measures, "where": where},
                              "refused": str(e)})
             if self.state is not None:
-                self._save(self.log[-1])
+                self._save(self.log[-1], history=self.budget is None)
             raise
 
     def _aggregate(self, group_by, measures, where) -> Answer:
@@ -399,8 +442,9 @@ class Analysis:
     def _measure(self, m):
         if m in ("people", "rows"):
             return m, m, None
-        if isinstance(m, dict) and len(m) == 1:
-            (op, col), = m.items()
+        if isinstance(m, dict):
+            ops = [k for k in m if k not in ("lower", "upper")]
+            op, col = (ops[0], m[ops[0]]) if len(ops) == 1 else (None, None)
             if op in ("sum", "mean"):
                 self._column(col, "number", f"{op} needs a number column")
                 return f"{op}({col})", op, col

@@ -8,6 +8,7 @@
     lindungidatamu risk claims.parquet               # can rows still be singled out? writes the fix into the policy
     lindungidatamu serve claims.parquet              # an MCP server: an AI client asks, gets gated aggregates only
     lindungidatamu ask claims.parquet '{"group_by": ["sex"], "measures": ["people"]}'   # one gated question
+    lindungidatamu serve claims.parquet --dp 1       # the same under differential privacy, a total budget of 1
 
 Masking is one-way unless you ask for a vault. Add --names to use the name model for people and
 organisations in text (pip install "lindungidatamu[names]"). Tables need pip install "lindungidatamu[files]".
@@ -346,13 +347,19 @@ def _analysis(a):
         k = k or (load_settings(policy_path).get("risk") or {}).get("k")
     state = Path(a.state) if a.state else path.with_name(f"{path.stem}.analysis")
     print(f"policy: {policy_path if policy else 'none, profiling the table'}; state: {state}", file=sys.stderr)
-    return Analysis(path, policy, k=k or 5, state=state, max_groups=a.max_groups)
+    try:
+        return Analysis(path, policy, k=k or 5, state=state, max_groups=a.max_groups, dp=a.dp,
+                        dp_question=a.dp_question, delta=a.delta)
+    except ValueError as e:                 # a state folder kept for another table, budget or mode
+        raise SystemExit(f"lindungidatamu: {e}") from None
 
 
 def cmd_serve(a) -> int:
     from .serve import run
     analysis = _analysis(a)
-    print(f"serving {Path(a.file).name} over MCP (stdio): aggregates only, k = {analysis.k}", file=sys.stderr)
+    mode = (f"differential privacy, epsilon {analysis.budget.left:g} of {analysis.budget.epsilon:g} left"
+            if analysis.budget is not None else f"k = {analysis.k}")
+    print(f"serving {Path(a.file).name} over MCP (stdio): aggregates only, {mode}", file=sys.stderr)
     run(analysis)
     return 0
 
@@ -365,8 +372,9 @@ def cmd_ask(a) -> int:
         return 0
     try:
         q = json.loads(a.query)
+        options = {k: q[k] for k in ("epsilon", "groups_per_person", "rows_per_person") if k in q}
         _say(str(analysis.aggregate(group_by=q.get("group_by") or [], measures=q.get("measures") or ["people"],
-                                    where=q.get("where") or [])))
+                                    where=q.get("where") or [], **options)))
     except (json.JSONDecodeError, AttributeError):
         _say('the question is JSON: {"group_by": [...], "measures": [...], "where": [...]}, or "describe"')
         return 1
@@ -441,6 +449,11 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--k", type=int, help="smallest group answered (default: the policy's risk k, else 5)")
         p.add_argument("--state", help="the noise secret, groups answered and question log (default: FILE.analysis/)")
         p.add_argument("--max-groups", type=int, default=500, help="most groups in one answer (default 500)")
+        p.add_argument("--dp", type=float, metavar="EPSILON",
+                       help="differential privacy with this total budget (kept in the state folder)")
+        p.add_argument("--dp-question", type=float, metavar="EPSILON",
+                       help="DP: the budget one question spends by default (default: a tenth of the total)")
+        p.add_argument("--delta", type=float, default=1e-6, help="DP: the chance a group of one person shows (1e-6)")
 
     p = sub.add_parser("serve", help="an MCP server (stdio): an AI client asks about the table, gets gated aggregates only")
     gated(p)
